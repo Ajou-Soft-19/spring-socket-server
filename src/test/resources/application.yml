@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:db;DB_CLOSE_DELAY=-1;MODE=MySQL;
+  jpa:
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
+        show_sql: true
+        highlight_sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+
+server:
+  port: 8000
+  error:
+    include-message: never
+
+jwt:
+  header: Authorization
+  secret: VG9CU0dPUUFzblNVMVR4bEs2N1daU0hXUnJKQ0ZhSG4yYWVoSUdMZmZiTVY5YXBmUHNCcGVUNHlZSTFWVVVTOA==
+
+verification:
+  encoder-strength: 4
+
+logging:
+  pattern:
+    console: "%clr(%d{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [%mdc{traceId}] %m%n${LOG_EXCEPTION_CONVERSION_WORD:%wEx}"
