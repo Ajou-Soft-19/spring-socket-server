@@ -18,6 +18,7 @@ import org.locationtech.jts.geom.Point;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class VehicleStatus {
 
+    // TODO: UUID 값인데 인덱싱으로 성능 저하가 없을지 고려
     @Id
     private String vehicleStatusId;
 

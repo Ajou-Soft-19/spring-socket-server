@@ -19,9 +19,7 @@ public interface VehicleStatusRepository extends JpaRepository<VehicleStatus, UU
 //                           @Param("direction") double direction,
 //                           @Param("lastUpdateTime") LocalDateTime lastUpdateTime);
 
-    void deleteByVehicle(Vehicle vehicle);
-
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("delete from VehicleStatus vs where vs.vehicle.vehicleId=:vehicleId")
     void deleteByVehicleId(@Param("vehicleId") Long vehicleId);
 

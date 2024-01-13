@@ -83,6 +83,8 @@ public class SocketController {
         Long vehicleId = (Long) attributes.get("vehicleId");
         checkInitialized(vehicleId);
         vehicleStatusService.deleteVehicleStatus(vehicleId);
+        attributes.remove("vehicleId");
+        attributes.remove("vehicleStatusId");
         return new SocketResponse(Map.of("msg", "OK"));
     }
 

@@ -5,6 +5,7 @@ import com.ajousw.spring.socket.handler.json.SocketRequest;
 import com.ajousw.spring.socket.handler.json.SocketResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,15 +61,33 @@ public class LocationSocketHandler implements WebSocketHandler {
     }
 
     @Override
-    public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
+    public void handleTransportError(WebSocketSession session, Throwable exception) {
         log.error("Error occurred at sender " + session, exception);
+        // TODO: 오류 시 세션 삭제
         sessions.remove(session);
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
         log.info("Session " + session.getId() + " closed with status: " + closeStatus.getReason());
         sessions.remove(session);
+    }
+
+    public void broadcastToTargetSession(Set<String> targetSessionId, String message) {
+        TextMessage textMessage = new TextMessage(message);
+        List<WebSocketSession> targetSessions = sessions.stream()
+                .filter(s -> targetSessionId.contains(s.getId()))
+                .toList();
+
+        for (WebSocketSession session : targetSessions) {
+            try {
+                if (session.isOpen()) {
+                    session.sendMessage(textMessage);
+                }
+            } catch (IOException e) {
+                log.error("Failed to send message to {}", session.getId(), e);
+            }
+        }
     }
 
     private void sendTextMessage(WebSocketSession session, String text) throws IOException {
