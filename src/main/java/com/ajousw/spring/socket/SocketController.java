@@ -20,7 +20,7 @@ import org.springframework.web.socket.WebSocketSession;
 public class SocketController {
     private final VehicleStatusService vehicleStatusService;
 
-    public SocketResponse handleSocketRequest(SocketRequest socketRequest, WebSocketSession webSocketSession) {
+    public SocketResponse handleSocketRequest(SocketRequest socketRequest, WebSocketSession webSocketSession, boolean isEmergencyVehicle) {
         RequestType requestType = socketRequest.getRequestType();
         log.info("<{}> request type [{}]", webSocketSession.getId(), requestType);
 
@@ -31,18 +31,17 @@ public class SocketController {
             return new SocketResponse(420, "No Matching Request Type");
         }
 
-        return handleRequest(socketRequest, requestType, attributes, webSocketSession.getId(), email);
+        return handleRequest(socketRequest, requestType, attributes, webSocketSession.getId(), email, isEmergencyVehicle);
     }
 
     private SocketResponse handleRequest(SocketRequest socketRequest, RequestType requestType,
-                                         Map<String, Object> attributes, String sessionId, String email) {
+                                         Map<String, Object> attributes, String sessionId, String email, boolean isEmergencyVehicle) {
         SocketResponse socketResponse = null;
         Map<String, Object> data = socketRequest.getData();
         try {
             switch (requestType) {
-                case INIT -> socketResponse = init(data, email, attributes, sessionId);
+                case INIT -> socketResponse = init(data, email, attributes, sessionId, isEmergencyVehicle);
                 case UPDATE -> socketResponse = update(data, attributes);
-                case CLOSE -> socketResponse = close(data, attributes);
             }
         } catch (IllegalArgumentException | StatusNotInitialized e) {
             return new SocketResponse(420, Map.of("errMsg", e.getMessage()));
@@ -55,9 +54,9 @@ public class SocketController {
     }
 
     private SocketResponse init(Map<String, Object> data, String email, Map<String, Object> attributes,
-                                String sessionId) {
+                                String sessionId, boolean isEmergencyVehicle) {
         Long vehicleId = getSafeValueFromMap(data, "vehicleId", Long.class);
-        String vehicleStatusId = vehicleStatusService.createVehicleStatus(sessionId, email, vehicleId);
+        String vehicleStatusId = vehicleStatusService.createVehicleStatus(sessionId, email, vehicleId, isEmergencyVehicle);
         attributes.put("vehicleId", vehicleId);
         attributes.put("vehicleStatusId", vehicleStatusId);
         return new SocketResponse(Map.of("vehicleStatusId", vehicleStatusId));
@@ -79,7 +78,7 @@ public class SocketController {
         return new SocketResponse(Map.of("msg", "OK"));
     }
 
-    private SocketResponse close(Map<String, Object> data, Map<String, Object> attributes) {
+    public SocketResponse deleteStatus(Map<String, Object> attributes) {
         Long vehicleId = (Long) attributes.get("vehicleId");
         checkInitialized(vehicleId);
         vehicleStatusService.deleteVehicleStatus(vehicleId);

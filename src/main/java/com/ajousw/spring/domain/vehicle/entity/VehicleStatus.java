@@ -35,11 +35,13 @@ public class VehicleStatus {
 
     private double direction;
 
+    private boolean isEmergencyVehicle;
+
     private LocalDateTime lastUpdateTime;
 
     @Builder
     public VehicleStatus(String vehicleStatusId, Vehicle vehicle, boolean usingNavi, Point coordinate,
-                         double meterPerSec, double direction, LocalDateTime lastUpdateTime) {
+                         double meterPerSec, double direction, LocalDateTime lastUpdateTime, boolean isEmergencyVehicle) {
         this.vehicleStatusId = vehicleStatusId;
         this.vehicle = vehicle;
         this.usingNavi = usingNavi;
@@ -47,6 +49,7 @@ public class VehicleStatus {
         this.meterPerSec = meterPerSec;
         this.direction = direction;
         this.lastUpdateTime = lastUpdateTime;
+        this.isEmergencyVehicle = isEmergencyVehicle;
     }
 
     public void modifyStatus(boolean usingNavi, Point coordinate, double meterPerSec,

@@ -30,7 +30,8 @@ public class SecurityConfig {
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
     private final JwtFilter jwtFilter;
     private final String[] adminUrl = {"/admin/**"};
-    private final String[] permitAllUrl = {"/error", "/ws/my-location"};
+    private final String[] permitAllUrl = {"/error"};
+    private final String[] emergencyUrl = {"/error"};
     private final String[] anonymousUrl = {""};
     @Value("${verification.encoder-strength}")
     private int encoderStrength;
@@ -50,6 +51,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(adminUrl).hasRole("ADMIN")
+                        .requestMatchers(emergencyUrl).hasRole("EMERGENCY_VEHICLE")
                         .requestMatchers(permitAllUrl).permitAll()
                         .requestMatchers(anonymousUrl).anonymous()
                         .anyRequest().authenticated()

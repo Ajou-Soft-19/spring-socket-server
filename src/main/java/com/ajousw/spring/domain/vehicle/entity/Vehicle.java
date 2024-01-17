@@ -40,7 +40,6 @@ public class Vehicle extends BaseTimeEntity {
     @Enumerated
     private VehicleType vehicleType;
 
-
     @OneToOne(mappedBy = "vehicle", fetch = FetchType.LAZY)
     private VehicleStatus vehicleStatus;
 

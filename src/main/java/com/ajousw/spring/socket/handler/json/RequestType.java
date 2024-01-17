@@ -2,8 +2,7 @@ package com.ajousw.spring.socket.handler.json;
 
 public enum RequestType {
     INIT("INIT"),
-    UPDATE("UPDATE"),
-    CLOSE("CLOSE");
+    UPDATE("UPDATE");
 
     private final String command;
 

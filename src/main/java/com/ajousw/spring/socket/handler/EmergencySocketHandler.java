@@ -4,25 +4,21 @@ import com.ajousw.spring.socket.SocketController;
 import com.ajousw.spring.socket.handler.json.SocketRequest;
 import com.ajousw.spring.socket.handler.json.SocketResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketHandler;
-import org.springframework.web.socket.WebSocketMessage;
-import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.*;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class LocationSocketHandler implements WebSocketHandler {
+public class EmergencySocketHandler implements WebSocketHandler {
 
     private final SocketController socketController;
     private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
@@ -55,7 +51,7 @@ public class LocationSocketHandler implements WebSocketHandler {
         }
 
         long startTime = System.currentTimeMillis();
-        SocketResponse socketResponse = socketController.handleSocketRequest(socketRequest, session, false);
+        SocketResponse socketResponse = socketController.handleSocketRequest(socketRequest, session, true);
         long endTime = System.currentTimeMillis();
         log.info("<{}> Response Time = {}ms", session.getId(), endTime - startTime);
         session.sendMessage(new TextMessage(convertToJson(socketResponse)));
@@ -84,7 +80,7 @@ public class LocationSocketHandler implements WebSocketHandler {
         for (WebSocketSession session : targetSessions) {
             try {
                 if (session.isOpen()) {
-                    sendTextMessage(session, message, 200);
+                    session.sendMessage(textMessage);
                 }
             } catch (IOException e) {
                 log.error("Failed to send message to {}", session.getId(), e);
@@ -93,8 +89,8 @@ public class LocationSocketHandler implements WebSocketHandler {
     }
 
     private void sendTextMessage(WebSocketSession session, String text, int code) throws IOException {
-        String responseJson = convertToJson(Map.of("msg", new SocketResponse(code, text)));
-        session.sendMessage(new TextMessage(responseJson));
+        String errorResponse = convertToJson(new SocketResponse(code, text));
+        session.sendMessage(new TextMessage(errorResponse));
     }
 
     private boolean checkJwtToken(WebSocketSession session, String jwt) throws IOException {

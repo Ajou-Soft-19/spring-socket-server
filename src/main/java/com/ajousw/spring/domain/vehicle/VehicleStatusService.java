@@ -27,7 +27,7 @@ public class VehicleStatusService {
     private final MemberJpaRepository memberRepository;
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
-    public String createVehicleStatus(String sessionId, String email, Long vehicleId) {
+    public String createVehicleStatus(String sessionId, String email, Long vehicleId, boolean isEmergencyVehicle) {
         Long memberId = findMemberIdByEmail(email);
         Vehicle vehicle = findVehicleById(vehicleId);
 
@@ -36,7 +36,7 @@ public class VehicleStatusService {
         }
 
         vehicleStatusRepository.deleteByVehicleId(vehicle.getVehicleId());
-        VehicleStatus vehicleStatus = new VehicleStatus(sessionId, vehicle, false, null, -1, -1, LocalDateTime.now());
+        VehicleStatus vehicleStatus = new VehicleStatus(sessionId, vehicle, false, null, -1, -1, LocalDateTime.now(), isEmergencyVehicle);
         vehicleStatusRepository.save(vehicleStatus);
 
         return vehicleStatus.getVehicleStatusId();
