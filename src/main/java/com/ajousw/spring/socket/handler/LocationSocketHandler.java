@@ -75,8 +75,7 @@ public class LocationSocketHandler implements WebSocketHandler {
         sessions.remove(session);
     }
 
-    public void broadcastToTargetSession(Set<String> targetSessionId, String message) {
-        TextMessage textMessage = new TextMessage(message);
+    public void broadcastToTargetSession(Set<String> targetSessionId, Object message) {
         List<WebSocketSession> targetSessions = sessions.stream()
                 .filter(s -> targetSessionId.contains(s.getId()))
                 .toList();
@@ -84,7 +83,7 @@ public class LocationSocketHandler implements WebSocketHandler {
         for (WebSocketSession session : targetSessions) {
             try {
                 if (session.isOpen()) {
-                    sendTextMessage(session, message, 200);
+                    sendObjectMessage(session, message, 200);
                 }
             } catch (IOException e) {
                 log.error("Failed to send message to {}", session.getId(), e);
@@ -94,6 +93,11 @@ public class LocationSocketHandler implements WebSocketHandler {
 
     private void sendTextMessage(WebSocketSession session, String text, int code) throws IOException {
         String responseJson = convertToJson(Map.of("msg", new SocketResponse(code, text)));
+        session.sendMessage(new TextMessage(responseJson));
+    }
+
+    private void sendObjectMessage(WebSocketSession session, Object message, int code) throws IOException {
+        String responseJson = convertToJson(Map.of("data", new SocketResponse(code, message)));
         session.sendMessage(new TextMessage(responseJson));
     }
 
