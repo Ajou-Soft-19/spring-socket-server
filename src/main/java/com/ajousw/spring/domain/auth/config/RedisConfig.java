@@ -57,4 +57,9 @@ public class RedisConfig {
         return new ChannelTopic("alertBroadcast");
     }
 
+    @Bean
+    public ChannelTopic updateCurrentPathPoint() {
+        return new ChannelTopic("updateCurrentPathPoint");
+    }
+
 }

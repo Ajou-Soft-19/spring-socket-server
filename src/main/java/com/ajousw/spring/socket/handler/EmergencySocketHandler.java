@@ -4,16 +4,19 @@ import com.ajousw.spring.socket.SocketController;
 import com.ajousw.spring.socket.handler.json.SocketRequest;
 import com.ajousw.spring.socket.handler.json.SocketResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-import org.springframework.web.socket.*;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.WebSocketMessage;
+import org.springframework.web.socket.WebSocketSession;
 
 @Slf4j
 @Component
@@ -54,12 +57,15 @@ public class EmergencySocketHandler implements WebSocketHandler {
         SocketResponse socketResponse = socketController.handleSocketRequest(socketRequest, session, true);
         long endTime = System.currentTimeMillis();
         log.info("<{}> Response Time = {}ms", session.getId(), endTime - startTime);
+        if (!session.isOpen()) {
+            log.error("Session Closed while sending data: " + session.getId());
+        }
         session.sendMessage(new TextMessage(convertToJson(socketResponse)));
     }
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
-        log.error("Error occurred at sender " + session, exception);
+        log.error("Error occurred at sender " + session);
         socketController.deleteStatus(session.getAttributes());
         sessions.remove(session);
     }

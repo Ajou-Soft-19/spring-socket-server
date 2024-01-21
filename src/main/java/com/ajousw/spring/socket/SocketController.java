@@ -20,7 +20,8 @@ import org.springframework.web.socket.WebSocketSession;
 public class SocketController {
     private final VehicleStatusService vehicleStatusService;
 
-    public SocketResponse handleSocketRequest(SocketRequest socketRequest, WebSocketSession webSocketSession, boolean isEmergencyVehicle) {
+    public SocketResponse handleSocketRequest(SocketRequest socketRequest, WebSocketSession webSocketSession,
+                                              boolean isEmergencyVehicle) {
         RequestType requestType = socketRequest.getRequestType();
         log.info("<{}> request type [{}]", webSocketSession.getId(), requestType);
 
@@ -31,17 +32,19 @@ public class SocketController {
             return new SocketResponse(420, "No Matching Request Type");
         }
 
-        return handleRequest(socketRequest, requestType, attributes, webSocketSession.getId(), email, isEmergencyVehicle);
+        return handleRequest(socketRequest, requestType, attributes, webSocketSession.getId(), email,
+                isEmergencyVehicle);
     }
 
     private SocketResponse handleRequest(SocketRequest socketRequest, RequestType requestType,
-                                         Map<String, Object> attributes, String sessionId, String email, boolean isEmergencyVehicle) {
+                                         Map<String, Object> attributes, String sessionId, String email,
+                                         boolean isEmergencyVehicle) {
         SocketResponse socketResponse = null;
         Map<String, Object> data = socketRequest.getData();
         try {
             switch (requestType) {
                 case INIT -> socketResponse = init(data, email, attributes, sessionId, isEmergencyVehicle);
-                case UPDATE -> socketResponse = update(data, attributes);
+                case UPDATE -> socketResponse = update(data, attributes, isEmergencyVehicle);
             }
         } catch (IllegalArgumentException | StatusNotInitialized e) {
             return new SocketResponse(420, Map.of("errMsg", e.getMessage()));
@@ -56,13 +59,15 @@ public class SocketController {
     private SocketResponse init(Map<String, Object> data, String email, Map<String, Object> attributes,
                                 String sessionId, boolean isEmergencyVehicle) {
         Long vehicleId = getSafeValueFromMap(data, "vehicleId", Long.class);
-        String vehicleStatusId = vehicleStatusService.createVehicleStatus(sessionId, email, vehicleId, isEmergencyVehicle);
+        String vehicleStatusId = vehicleStatusService.createVehicleStatus(sessionId, email, vehicleId,
+                isEmergencyVehicle);
         attributes.put("vehicleId", vehicleId);
         attributes.put("vehicleStatusId", vehicleStatusId);
         return new SocketResponse(Map.of("vehicleStatusId", vehicleStatusId));
     }
 
-    private SocketResponse update(Map<String, Object> data, Map<String, Object> attributes) {
+    private SocketResponse update(Map<String, Object> data, Map<String, Object> attributes,
+                                  boolean isEmergencyVehicle) {
         Long vehicleId = (Long) attributes.get("vehicleId");
         checkInitialized(vehicleId);
 
@@ -74,17 +79,18 @@ public class SocketController {
         LocalDateTime localDateTime = parseToLocalDateTime(getSafeValueFromMap(data, "timestamp", String.class));
 
         vehicleStatusService.updateVehicleStatus(vehicleId, isUsingNavi, longitude, latitude, meterPerSec, direction,
-                localDateTime);
+                localDateTime, isEmergencyVehicle);
         return new SocketResponse(Map.of("msg", "OK"));
     }
 
-    public SocketResponse deleteStatus(Map<String, Object> attributes) {
+    public void deleteStatus(Map<String, Object> attributes) {
         Long vehicleId = (Long) attributes.get("vehicleId");
-        checkInitialized(vehicleId);
+        if (vehicleId == null) {
+            return;
+        }
         vehicleStatusService.deleteVehicleStatus(vehicleId);
         attributes.remove("vehicleId");
         attributes.remove("vehicleStatusId");
-        return new SocketResponse(Map.of("msg", "OK"));
     }
 
     private void checkInitialized(Long vehicleId) {
@@ -124,4 +130,6 @@ public class SocketController {
             throw new IllegalArgumentException("Invalid format for timestamp", e);
         }
     }
+
+
 }

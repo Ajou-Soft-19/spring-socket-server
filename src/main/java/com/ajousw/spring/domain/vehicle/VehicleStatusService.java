@@ -36,7 +36,8 @@ public class VehicleStatusService {
         }
 
         vehicleStatusRepository.deleteByVehicleId(vehicle.getVehicleId());
-        VehicleStatus vehicleStatus = new VehicleStatus(sessionId, vehicle, false, null, -1, -1, LocalDateTime.now(), isEmergencyVehicle);
+        VehicleStatus vehicleStatus = new VehicleStatus(sessionId, vehicle, false, null, -1, -1, LocalDateTime.now(),
+                isEmergencyVehicle);
         vehicleStatusRepository.save(vehicleStatus);
 
         return vehicleStatus.getVehicleStatusId();
@@ -44,11 +45,15 @@ public class VehicleStatusService {
 
     public void updateVehicleStatus(Long vehicleId, boolean isUsingNavi, double longitude, double latitude,
                                     double meterPerSec,
-                                    double direction, LocalDateTime lastUpdateTime) {
+                                    double direction, LocalDateTime lastUpdateTime, boolean isEmergencyVehicle) {
         VehicleStatus vehicleStatus = findVehicleStatusByVehicleId(vehicleId);
 
         Point coordinate = geometryFactory.createPoint(new Coordinate(longitude, latitude));
         vehicleStatus.modifyStatus(isUsingNavi, coordinate, meterPerSec, direction, lastUpdateTime);
+    }
+
+    private void calculateCurrentPathPoint() {
+
     }
 
     public void deleteVehicleStatus(Long vehicleId) {
