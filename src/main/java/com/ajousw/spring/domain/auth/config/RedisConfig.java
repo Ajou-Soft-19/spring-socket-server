@@ -1,6 +1,6 @@
 package com.ajousw.spring.domain.auth.config;
 
-import com.ajousw.spring.socket.AlertBroadcastListener;
+import com.ajousw.spring.socket.pubsub.AlertBroadcastListener;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

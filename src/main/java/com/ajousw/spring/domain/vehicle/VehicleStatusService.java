@@ -1,12 +1,23 @@
 package com.ajousw.spring.domain.vehicle;
 
 import com.ajousw.spring.domain.member.repository.MemberJpaRepository;
+import com.ajousw.spring.domain.navi.NavigationPath;
+import com.ajousw.spring.domain.navi.NavigationPathRepository;
+import com.ajousw.spring.domain.navi.PathPoint;
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
+import com.ajousw.spring.domain.vehicle.entity.VehicleLocationLog;
+import com.ajousw.spring.domain.vehicle.entity.VehicleLocationLogRepository;
 import com.ajousw.spring.domain.vehicle.entity.VehicleRepository;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatusRepository;
+import com.ajousw.spring.domain.vehicle.util.CoordinateUtil;
+import com.ajousw.spring.socket.handler.json.CurrentPointUpdateDto;
+import com.ajousw.spring.socket.handler.json.VehicleStatusUpdateDto;
+import com.ajousw.spring.socket.pubsub.RedisMessagePublisher;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
@@ -22,9 +33,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 public class VehicleStatusService {
+    private final VehicleLocationLogRepository vehicleLocationLogRepository;
+    private final NavigationPathRepository navigationPathRepository;
     private final VehicleStatusRepository vehicleStatusRepository;
     private final VehicleRepository vehicleRepository;
     private final MemberJpaRepository memberRepository;
+    private final RedisMessagePublisher redisMessagePublisher;
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
     public String createVehicleStatus(String sessionId, String email, Long vehicleId, boolean isEmergencyVehicle) {
@@ -43,21 +57,89 @@ public class VehicleStatusService {
         return vehicleStatus.getVehicleStatusId();
     }
 
-    public void updateVehicleStatus(Long vehicleId, boolean isUsingNavi, double longitude, double latitude,
-                                    double meterPerSec,
-                                    double direction, LocalDateTime lastUpdateTime, boolean isEmergencyVehicle) {
+    public void updateVehicleStatus(String email, Long vehicleId, VehicleStatusUpdateDto updateDto,
+                                    boolean isEmergencyVehicle) {
         VehicleStatus vehicleStatus = findVehicleStatusByVehicleId(vehicleId);
 
-        Point coordinate = geometryFactory.createPoint(new Coordinate(longitude, latitude));
-        vehicleStatus.modifyStatus(isUsingNavi, coordinate, meterPerSec, direction, lastUpdateTime);
+        Point coordinate = geometryFactory.createPoint(
+                new Coordinate(updateDto.getLongitude(), updateDto.getLatitude()));
+        vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), coordinate, updateDto.getMeterPerSec(),
+                updateDto.getDirection(), updateDto.getLocalDateTime());
+
+        if (isEmergencyVehicle) {
+            logVehicleLocation(vehicleId, coordinate, updateDto.getLocalDateTime());
+        }
+
+        if (isEmergencyVehicle && updateDto.getIsUsingNavi()) {
+            updateCurrentPathPoint(email, updateDto.getNaviPathId(), updateDto.getLongitude(),
+                    updateDto.getLatitude());
+        }
     }
 
-    private void calculateCurrentPathPoint() {
 
+    private void logVehicleLocation(Long vehicleId, Point coordinate, LocalDateTime lastUpdateTime) {
+        VehicleLocationLog vehicleLocationLog = new VehicleLocationLog(vehicleId, coordinate, lastUpdateTime);
+        vehicleLocationLogRepository.save(vehicleLocationLog);
+    }
+
+    private void updateCurrentPathPoint(String email, Long naviPathId, double longitude, double latitude) {
+        NavigationPath navigationPath = findNavigationPathById(naviPathId);
+        List<PathPoint> pathPoints = navigationPath.getPathPoints();
+
+        Optional<PathPoint> closestPathPoint = findClosestPathPoint(pathPoints, longitude, latitude,
+                navigationPath.getCurrentPathPoint());
+
+        if (closestPathPoint.isEmpty()) {
+            return;
+        }
+
+        log.info("update idx from {}, to {}", navigationPath.getCurrentPathPoint(), closestPathPoint.get().getIndex());
+
+        CurrentPointUpdateDto currentPointUpdateDto = new CurrentPointUpdateDto(naviPathId,
+                closestPathPoint.get().getIndex(), email);
+
+        redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
+    }
+
+    private Optional<PathPoint> findClosestPathPoint(List<PathPoint> pathPoints, double longitude, double latitude,
+                                                     Long currentPathPointIndex) {
+        PathPoint closestPoint = null;
+        double closestDistance = Double.MAX_VALUE;
+
+        if (pathPoints.size() <= 1) {
+            return Optional.empty();
+        }
+
+        for (PathPoint point : pathPoints) {
+            double distance = CoordinateUtil.calculateDistance(latitude, longitude, point.getCoordinate().getY(),
+                    point.getCoordinate().getX());
+
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestPoint = point;
+            }
+        }
+
+        if (closestPoint == null || closestPoint.getIndex() <= currentPathPointIndex) {
+            return Optional.empty();
+        }
+
+        // TODO: path point 확인 정확도 향상 로직 구현
+        if (closestDistance > 50) {
+            return Optional.empty();
+        }
+
+        return Optional.of(closestPoint);
     }
 
     public void deleteVehicleStatus(Long vehicleId) {
         vehicleStatusRepository.deleteByVehicleId(vehicleId);
+    }
+
+    private NavigationPath findNavigationPathById(Long naviPathId) {
+        return navigationPathRepository.findNavigationPathByNaviPathId(naviPathId).orElseThrow(() -> {
+            return new IllegalArgumentException("No Such NavigationPath");
+        });
     }
 
     private VehicleStatus findVehicleStatusByVehicleId(Long vehicleId) {

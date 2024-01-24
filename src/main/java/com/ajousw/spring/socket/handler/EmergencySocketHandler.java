@@ -56,6 +56,7 @@ public class EmergencySocketHandler implements WebSocketHandler {
         long startTime = System.currentTimeMillis();
         SocketResponse socketResponse = socketController.handleSocketRequest(socketRequest, session, true);
         long endTime = System.currentTimeMillis();
+
         log.info("<{}> Response Time = {}ms", session.getId(), endTime - startTime);
         if (!session.isOpen()) {
             log.error("Session Closed while sending data: " + session.getId());

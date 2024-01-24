@@ -5,6 +5,7 @@ import com.ajousw.spring.socket.exception.StatusNotInitialized;
 import com.ajousw.spring.socket.handler.json.RequestType;
 import com.ajousw.spring.socket.handler.json.SocketRequest;
 import com.ajousw.spring.socket.handler.json.SocketResponse;
+import com.ajousw.spring.socket.handler.json.VehicleStatusUpdateDto;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -24,30 +25,27 @@ public class SocketController {
                                               boolean isEmergencyVehicle) {
         RequestType requestType = socketRequest.getRequestType();
         log.info("<{}> request type [{}]", webSocketSession.getId(), requestType);
-
         Map<String, Object> attributes = webSocketSession.getAttributes();
-        String email = (String) attributes.get("email");
 
-        if (requestType == null) {
-            return new SocketResponse(420, "No Matching Request Type");
-        }
-
-        return handleRequest(socketRequest, requestType, attributes, webSocketSession.getId(), email,
+        return handleRequest(socketRequest, requestType, attributes, webSocketSession.getId(),
                 isEmergencyVehicle);
     }
 
     private SocketResponse handleRequest(SocketRequest socketRequest, RequestType requestType,
-                                         Map<String, Object> attributes, String sessionId, String email,
+                                         Map<String, Object> attributes, String sessionId,
                                          boolean isEmergencyVehicle) {
         SocketResponse socketResponse = null;
         Map<String, Object> data = socketRequest.getData();
         try {
             switch (requestType) {
-                case INIT -> socketResponse = init(data, email, attributes, sessionId, isEmergencyVehicle);
+                case INIT -> socketResponse = init(data, attributes, sessionId, isEmergencyVehicle);
                 case UPDATE -> socketResponse = update(data, attributes, isEmergencyVehicle);
+                default -> throw new IllegalArgumentException("No matching request type");
             }
         } catch (IllegalArgumentException | StatusNotInitialized e) {
             return new SocketResponse(420, Map.of("errMsg", e.getMessage()));
+        } catch (NullPointerException e) {
+            return new SocketResponse(420, Map.of("errMsg", "잘못된 요청입니다."));
         } catch (Exception e) {
             log.error("", e);
             return new SocketResponse(500, Map.of("errMsg", "Error While Handling Request"));
@@ -56,8 +54,9 @@ public class SocketController {
         return socketResponse;
     }
 
-    private SocketResponse init(Map<String, Object> data, String email, Map<String, Object> attributes,
+    private SocketResponse init(Map<String, Object> data, Map<String, Object> attributes,
                                 String sessionId, boolean isEmergencyVehicle) {
+        String email = (String) attributes.get("email");
         Long vehicleId = getSafeValueFromMap(data, "vehicleId", Long.class);
         String vehicleStatusId = vehicleStatusService.createVehicleStatus(sessionId, email, vehicleId,
                 isEmergencyVehicle);
@@ -69,17 +68,22 @@ public class SocketController {
     private SocketResponse update(Map<String, Object> data, Map<String, Object> attributes,
                                   boolean isEmergencyVehicle) {
         Long vehicleId = (Long) attributes.get("vehicleId");
+        String email = (String) attributes.get("email");
         checkInitialized(vehicleId);
 
-        Boolean isUsingNavi = getSafeValueFromMap(data, "isUsingNavi", Boolean.class);
-        Double longitude = getSafeValueFromMap(data, "longitude", Double.class);
-        Double latitude = getSafeValueFromMap(data, "latitude", Double.class);
-        Double meterPerSec = getSafeValueFromMap(data, "meterPerSec", Double.class);
-        Double direction = getSafeValueFromMap(data, "direction", Double.class);
-        LocalDateTime localDateTime = parseToLocalDateTime(getSafeValueFromMap(data, "timestamp", String.class));
+        VehicleStatusUpdateDto updateDto = new VehicleStatusUpdateDto();
+        updateDto.setIsUsingNavi(getSafeValueFromMap(data, "isUsingNavi", Boolean.class));
+        updateDto.setLongitude(getSafeValueFromMap(data, "longitude", Double.class));
+        updateDto.setLatitude(getSafeValueFromMap(data, "latitude", Double.class));
+        updateDto.setMeterPerSec(getSafeValueFromMap(data, "meterPerSec", Double.class));
+        updateDto.setDirection(getSafeValueFromMap(data, "direction", Double.class));
+        updateDto.setLocalDateTime(parseToLocalDateTime(getSafeValueFromMap(data, "timestamp", String.class)));
 
-        vehicleStatusService.updateVehicleStatus(vehicleId, isUsingNavi, longitude, latitude, meterPerSec, direction,
-                localDateTime, isEmergencyVehicle);
+        if (isEmergencyVehicle && updateDto.getIsUsingNavi()) {
+            updateDto.setNaviPathId(getSafeValueFromMap(data, "naviPathId", Long.class));
+        }
+
+        vehicleStatusService.updateVehicleStatus(email, vehicleId, updateDto, isEmergencyVehicle);
         return new SocketResponse(Map.of("msg", "OK"));
     }
 

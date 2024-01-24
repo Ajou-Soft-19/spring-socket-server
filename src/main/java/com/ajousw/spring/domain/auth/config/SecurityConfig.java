@@ -31,7 +31,7 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final String[] adminUrl = {"/admin/**"};
     private final String[] permitAllUrl = {"/error"};
-    private final String[] emergencyUrl = {"/error"};
+    private final String[] emergencyUrl = {"/ws/emergency-location"};
     private final String[] anonymousUrl = {""};
     @Value("${verification.encoder-strength}")
     private int encoderStrength;

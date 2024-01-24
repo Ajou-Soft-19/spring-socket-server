@@ -18,7 +18,6 @@ import org.locationtech.jts.geom.Point;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class VehicleStatus {
 
-    // TODO: UUID 값인데 인덱싱으로 성능 저하가 없을지 고려
     @Id
     private String vehicleStatusId;
 
@@ -41,7 +40,8 @@ public class VehicleStatus {
 
     @Builder
     public VehicleStatus(String vehicleStatusId, Vehicle vehicle, boolean usingNavi, Point coordinate,
-                         double meterPerSec, double direction, LocalDateTime lastUpdateTime, boolean isEmergencyVehicle) {
+                         double meterPerSec, double direction, LocalDateTime lastUpdateTime,
+                         boolean isEmergencyVehicle) {
         this.vehicleStatusId = vehicleStatusId;
         this.vehicle = vehicle;
         this.usingNavi = usingNavi;
