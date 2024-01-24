@@ -2,10 +2,10 @@ package com.ajousw.spring.socket;
 
 import com.ajousw.spring.domain.vehicle.VehicleStatusService;
 import com.ajousw.spring.socket.exception.StatusNotInitialized;
-import com.ajousw.spring.socket.handler.json.RequestType;
-import com.ajousw.spring.socket.handler.json.SocketRequest;
-import com.ajousw.spring.socket.handler.json.SocketResponse;
-import com.ajousw.spring.socket.handler.json.VehicleStatusUpdateDto;
+import com.ajousw.spring.socket.handler.message.RequestType;
+import com.ajousw.spring.socket.handler.message.SocketRequest;
+import com.ajousw.spring.socket.handler.message.SocketResponse;
+import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -58,7 +58,7 @@ public class SocketController {
                                 String sessionId, boolean isEmergencyVehicle) {
         String email = (String) attributes.get("email");
         Long vehicleId = getSafeValueFromMap(data, "vehicleId", Long.class);
-        String vehicleStatusId = vehicleStatusService.createVehicleStatus(sessionId, email, vehicleId,
+        String vehicleStatusId = vehicleStatusService.resetAndCreateVehicleStatus(sessionId, email, vehicleId,
                 isEmergencyVehicle);
         attributes.put("vehicleId", vehicleId);
         attributes.put("vehicleStatusId", vehicleStatusId);

@@ -1,4 +1,4 @@
-package com.ajousw.spring.web.controller.dto;
+package com.ajousw.spring.socket.handler.message.dto;
 
 import java.util.Set;
 import lombok.AccessLevel;

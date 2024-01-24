@@ -1,4 +1,4 @@
-package com.ajousw.spring.socket.handler.json;
+package com.ajousw.spring.socket.handler.message;
 
 import com.ajousw.spring.web.controller.json.ResponseStatusCode;
 import lombok.Getter;

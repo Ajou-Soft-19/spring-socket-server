@@ -1,10 +1,9 @@
-package com.ajousw.spring.socket.pubsub;
+package com.ajousw.spring.socket.handler.pubsub;
 
 import com.ajousw.spring.socket.handler.LocationSocketHandler;
-import com.ajousw.spring.web.controller.dto.BroadcastDto;
+import com.ajousw.spring.socket.handler.message.dto.BroadcastDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.redis.connection.Message;
@@ -13,11 +12,15 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AlertBroadcastListener implements MessageListener {
-
     private final ObjectMapper objectMapper;
     private final ApplicationContext applicationContext;
+    private LocationSocketHandler locationSocketHandler = null;
+
+    public AlertBroadcastListener(ObjectMapper objectMapper, ApplicationContext applicationContext) {
+        this.objectMapper = objectMapper;
+        this.applicationContext = applicationContext;
+    }
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
@@ -33,7 +36,11 @@ public class AlertBroadcastListener implements MessageListener {
     }
 
     private LocationSocketHandler getLocationSocketHandler() {
-        return applicationContext.getBean(LocationSocketHandler.class);
+        if (locationSocketHandler == null) {
+            locationSocketHandler = applicationContext.getBean(LocationSocketHandler.class);
+        }
+
+        return locationSocketHandler;
     }
 
 }

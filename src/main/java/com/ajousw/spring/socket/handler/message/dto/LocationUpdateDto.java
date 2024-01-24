@@ -1,4 +1,4 @@
-package com.ajousw.spring.socket.handler.json;
+package com.ajousw.spring.socket.handler.message.dto;
 
 import java.sql.Timestamp;
 import lombok.AccessLevel;
@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class LocationUpdate {
+public class LocationUpdateDto {
     private Long vehicleId;
 
     private String jwt;

@@ -1,4 +1,4 @@
-package com.ajousw.spring.socket.handler.json;
+package com.ajousw.spring.socket.handler.message;
 
 public enum RequestType {
     INIT("INIT"),

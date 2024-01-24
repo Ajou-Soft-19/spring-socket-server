@@ -1,5 +1,6 @@
-package com.ajousw.spring.domain.navi;
+package com.ajousw.spring.domain.navigation.entity.repository;
 
+import com.ajousw.spring.domain.navigation.entity.PathPoint;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;

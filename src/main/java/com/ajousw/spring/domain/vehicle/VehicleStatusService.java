@@ -1,19 +1,19 @@
 package com.ajousw.spring.domain.vehicle;
 
 import com.ajousw.spring.domain.member.repository.MemberJpaRepository;
-import com.ajousw.spring.domain.navi.NavigationPath;
-import com.ajousw.spring.domain.navi.NavigationPathRepository;
-import com.ajousw.spring.domain.navi.PathPoint;
+import com.ajousw.spring.domain.navigation.entity.NavigationPath;
+import com.ajousw.spring.domain.navigation.entity.PathPoint;
+import com.ajousw.spring.domain.navigation.entity.repository.NavigationPathRepository;
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
 import com.ajousw.spring.domain.vehicle.entity.VehicleLocationLog;
-import com.ajousw.spring.domain.vehicle.entity.VehicleLocationLogRepository;
-import com.ajousw.spring.domain.vehicle.entity.VehicleRepository;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
-import com.ajousw.spring.domain.vehicle.entity.VehicleStatusRepository;
-import com.ajousw.spring.domain.vehicle.util.CoordinateUtil;
-import com.ajousw.spring.socket.handler.json.CurrentPointUpdateDto;
-import com.ajousw.spring.socket.handler.json.VehicleStatusUpdateDto;
-import com.ajousw.spring.socket.pubsub.RedisMessagePublisher;
+import com.ajousw.spring.domain.vehicle.entity.repository.VehicleLocationLogRepository;
+import com.ajousw.spring.domain.vehicle.entity.repository.VehicleRepository;
+import com.ajousw.spring.domain.vehicle.entity.repository.VehicleStatusRepository;
+import com.ajousw.spring.socket.handler.message.dto.CurrentPointUpdateDto;
+import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
+import com.ajousw.spring.socket.handler.pubsub.RedisMessagePublisher;
+import com.ajousw.spring.util.CoordinateUtil;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -40,8 +40,10 @@ public class VehicleStatusService {
     private final MemberJpaRepository memberRepository;
     private final RedisMessagePublisher redisMessagePublisher;
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+    private final Long MAX_DISTANCE = 50L;
 
-    public String createVehicleStatus(String sessionId, String email, Long vehicleId, boolean isEmergencyVehicle) {
+    public String resetAndCreateVehicleStatus(String sessionId, String email, Long vehicleId,
+                                              boolean isEmergencyVehicle) {
         Long memberId = findMemberIdByEmail(email);
         Vehicle vehicle = findVehicleById(vehicleId);
 
@@ -60,9 +62,9 @@ public class VehicleStatusService {
     public void updateVehicleStatus(String email, Long vehicleId, VehicleStatusUpdateDto updateDto,
                                     boolean isEmergencyVehicle) {
         VehicleStatus vehicleStatus = findVehicleStatusByVehicleId(vehicleId);
-
         Point coordinate = geometryFactory.createPoint(
                 new Coordinate(updateDto.getLongitude(), updateDto.getLatitude()));
+
         vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), coordinate, updateDto.getMeterPerSec(),
                 updateDto.getDirection(), updateDto.getLocalDateTime());
 
@@ -71,18 +73,17 @@ public class VehicleStatusService {
         }
 
         if (isEmergencyVehicle && updateDto.getIsUsingNavi()) {
-            updateCurrentPathPoint(email, updateDto.getNaviPathId(), updateDto.getLongitude(),
+            findAndUpdateCurrentPathPoint(email, updateDto.getNaviPathId(), updateDto.getLongitude(),
                     updateDto.getLatitude());
         }
     }
-
 
     private void logVehicleLocation(Long vehicleId, Point coordinate, LocalDateTime lastUpdateTime) {
         VehicleLocationLog vehicleLocationLog = new VehicleLocationLog(vehicleId, coordinate, lastUpdateTime);
         vehicleLocationLogRepository.save(vehicleLocationLog);
     }
 
-    private void updateCurrentPathPoint(String email, Long naviPathId, double longitude, double latitude) {
+    private void findAndUpdateCurrentPathPoint(String email, Long naviPathId, double longitude, double latitude) {
         NavigationPath navigationPath = findNavigationPathById(naviPathId);
         List<PathPoint> pathPoints = navigationPath.getPathPoints();
 
@@ -125,7 +126,7 @@ public class VehicleStatusService {
         }
 
         // TODO: path point 확인 정확도 향상 로직 구현
-        if (closestDistance > 50) {
+        if (closestDistance > MAX_DISTANCE) {
             return Optional.empty();
         }
 

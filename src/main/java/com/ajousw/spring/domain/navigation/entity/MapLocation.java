@@ -1,4 +1,4 @@
-package com.ajousw.spring.domain.navi;
+package com.ajousw.spring.domain.navigation.entity;
 
 import jakarta.persistence.Embeddable;
 import lombok.AccessLevel;

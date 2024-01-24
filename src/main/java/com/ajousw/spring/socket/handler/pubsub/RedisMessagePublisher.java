@@ -1,7 +1,7 @@
-package com.ajousw.spring.socket.pubsub;
+package com.ajousw.spring.socket.handler.pubsub;
 
 
-import com.ajousw.spring.socket.handler.json.CurrentPointUpdateDto;
+import com.ajousw.spring.socket.handler.message.dto.CurrentPointUpdateDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;

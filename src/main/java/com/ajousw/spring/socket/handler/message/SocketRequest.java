@@ -1,4 +1,4 @@
-package com.ajousw.spring.socket.handler.json;
+package com.ajousw.spring.socket.handler.message;
 
 import java.util.Map;
 import lombok.AccessLevel;

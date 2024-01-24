@@ -1,7 +1,8 @@
-package com.ajousw.spring.domain.navi;
+package com.ajousw.spring.domain.navigation.entity;
 
 import com.ajousw.spring.domain.member.Member;
 import com.ajousw.spring.domain.member.repository.BaseTimeEntity;
+import com.ajousw.spring.domain.navigation.Provider;
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
@@ -28,7 +29,7 @@ import org.hibernate.annotations.DynamicUpdate;
 @DynamicUpdate
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NavigationPath extends BaseTimeEntity {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long naviPathId;

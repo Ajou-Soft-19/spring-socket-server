@@ -1,5 +1,6 @@
-package com.ajousw.spring.domain.vehicle.entity;
+package com.ajousw.spring.domain.vehicle.entity.repository;
 
+import com.ajousw.spring.domain.vehicle.entity.Vehicle;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

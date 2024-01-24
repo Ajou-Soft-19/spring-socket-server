@@ -1,13 +1,11 @@
 package com.ajousw.spring.socket.handler;
 
 import com.ajousw.spring.socket.SocketController;
-import com.ajousw.spring.socket.handler.json.SocketRequest;
-import com.ajousw.spring.socket.handler.json.SocketResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ajousw.spring.socket.handler.message.SocketRequest;
+import com.ajousw.spring.socket.handler.message.SocketResponse;
+import com.ajousw.spring.socket.handler.message.convert.SocketMessageConverter;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +24,7 @@ public class LocationSocketHandler implements WebSocketHandler {
 
     private final SocketController socketController;
     private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final SocketMessageConverter socketMessageConverter;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -37,20 +35,8 @@ public class LocationSocketHandler implements WebSocketHandler {
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws IOException {
-        if (!(message instanceof TextMessage textMessage)) {
-            sendTextMessage(session, "Only Text JSON Message is Allowed", 420);
-            return;
-        }
-
-        SocketRequest socketRequest = convertFromJson(textMessage.getPayload(), SocketRequest.class);
+        SocketRequest socketRequest = socketMessageConverter.checkRequestValidity(session, message);
         if (socketRequest == null) {
-            log.info("<{}> wrong request type", session.getId());
-            sendTextMessage(session, "Error while parsing JSON. Check Request JSON Form", 420);
-            return;
-        }
-
-        if (checkJwtToken(session, socketRequest.getJwt())) {
-            sendTextMessage(session, "Authentication Error: Please use the token used during Handshake.", 420);
             return;
         }
 
@@ -59,24 +45,13 @@ public class LocationSocketHandler implements WebSocketHandler {
         long endTime = System.currentTimeMillis();
         log.info("<{}> Response Time = {}ms", session.getId(), endTime - startTime);
         if (!session.isOpen()) {
-            log.error("Session Closed while sending data: " + session.getId());
+            log.info("Session Closed while sending data: " + session.getId());
+            return;
         }
-        session.sendMessage(new TextMessage(convertToJson(socketResponse)));
+
+        session.sendMessage(new TextMessage(socketMessageConverter.convertToJson(socketResponse)));
     }
 
-    @Override
-    public void handleTransportError(WebSocketSession session, Throwable exception) {
-        log.error("Error occurred at sender " + session, exception);
-        socketController.deleteStatus(session.getAttributes());
-        sessions.remove(session);
-    }
-
-    @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
-        log.info("Session " + session.getId() + " closed with status: " + closeStatus.getReason());
-        socketController.deleteStatus(session.getAttributes());
-        sessions.remove(session);
-    }
 
     public void broadcastToTargetSession(Set<String> targetSessionId, Object message) {
         List<WebSocketSession> targetSessions = sessions.stream()
@@ -86,7 +61,7 @@ public class LocationSocketHandler implements WebSocketHandler {
         for (WebSocketSession session : targetSessions) {
             try {
                 if (session.isOpen()) {
-                    sendObjectMessage(session, message, 200);
+                    socketMessageConverter.sendObjectMessage(session, message, 200);
                 }
             } catch (IOException e) {
                 log.error("Failed to send message to {}", session.getId(), e);
@@ -94,36 +69,18 @@ public class LocationSocketHandler implements WebSocketHandler {
         }
     }
 
-    private void sendTextMessage(WebSocketSession session, String text, int code) throws IOException {
-        String responseJson = convertToJson(Map.of("msg", new SocketResponse(code, text)));
-        session.sendMessage(new TextMessage(responseJson));
+    @Override
+    public void handleTransportError(WebSocketSession session, Throwable exception) {
+        log.info("Error occurred at sender " + session, exception);
+        socketController.deleteStatus(session.getAttributes());
+        sessions.remove(session);
     }
 
-    private void sendObjectMessage(WebSocketSession session, Object message, int code) throws IOException {
-        String responseJson = convertToJson(Map.of("data", new SocketResponse(code, message)));
-        session.sendMessage(new TextMessage(responseJson));
-    }
-
-    private boolean checkJwtToken(WebSocketSession session, String jwt) throws IOException {
-        return !Objects.equals(session.getHandshakeHeaders().getFirst("Authorization"), jwt);
-    }
-
-    private <T> T convertFromJson(String json, Class<T> clazz) {
-        try {
-            return objectMapper.readValue(json, clazz);
-        } catch (IOException e) {
-            log.info("Error while parsing JSON to object");
-            return null;
-        }
-    }
-
-    private String convertToJson(Object clazz) {
-        try {
-            return objectMapper.writeValueAsString(clazz);
-        } catch (IOException e) {
-            log.error("Error while writing JSON to object: {}", clazz, e);
-            return "Error while parsing JSON to object";
-        }
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
+        log.info("Session " + session.getId() + " closed with status: " + closeStatus.getReason());
+        socketController.deleteStatus(session.getAttributes());
+        sessions.remove(session);
     }
 
     @Override

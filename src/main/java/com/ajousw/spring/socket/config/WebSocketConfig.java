@@ -1,7 +1,6 @@
 package com.ajousw.spring.socket.config;
 
 import com.ajousw.spring.socket.handler.EmergencySocketHandler;
-import com.ajousw.spring.socket.handler.HandshakeInterceptor;
 import com.ajousw.spring.socket.handler.LocationSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;

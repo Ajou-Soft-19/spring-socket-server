@@ -1,4 +1,4 @@
-package com.ajousw.spring.socket.handler.json;
+package com.ajousw.spring.socket.handler.message.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;

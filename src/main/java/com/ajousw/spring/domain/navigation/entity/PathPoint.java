@@ -1,4 +1,4 @@
-package com.ajousw.spring.domain.navi;
+package com.ajousw.spring.domain.navigation.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

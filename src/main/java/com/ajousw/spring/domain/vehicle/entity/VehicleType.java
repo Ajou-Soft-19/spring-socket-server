@@ -1,4 +1,4 @@
-package com.ajousw.spring.domain.vehicle;
+package com.ajousw.spring.domain.vehicle.entity;
 
 public enum VehicleType {
     LIGHTWEIGHT_CAR("LIGHTWEIGHT_CAR", "1종 경형자동차"),

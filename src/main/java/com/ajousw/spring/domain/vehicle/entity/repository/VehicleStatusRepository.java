@@ -1,5 +1,6 @@
-package com.ajousw.spring.domain.vehicle.entity;
+package com.ajousw.spring.domain.vehicle.entity.repository;
 
+import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface VehicleStatusRepository extends JpaRepository<VehicleStatus, UUID> {
-    
+
     @Modifying(clearAutomatically = true)
     @Query("delete from VehicleStatus vs where vs.vehicle.vehicleId=:vehicleId")
     void deleteByVehicleId(@Param("vehicleId") Long vehicleId);

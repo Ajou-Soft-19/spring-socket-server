@@ -1,4 +1,4 @@
-package com.ajousw.spring.socket.handler;
+package com.ajousw.spring.socket.config;
 
 
 import jakarta.servlet.http.HttpServletRequest;
