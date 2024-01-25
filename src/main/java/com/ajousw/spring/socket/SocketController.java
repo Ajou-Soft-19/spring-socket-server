@@ -71,6 +71,21 @@ public class SocketController {
         String email = (String) attributes.get("email");
         checkInitialized(vehicleId);
 
+        VehicleStatusUpdateDto updateDto = createUpdateDto(data);
+
+        if (!isEmergencyVehicle) {
+            vehicleStatusService.updateVehicleStatus(vehicleId, updateDto);
+            return new SocketResponse(Map.of("msg", "OK"));
+        }
+
+        processEmergencyVehicle(data, email, vehicleId, updateDto);
+
+        String message = vehicleStatusService.updateEmergencyVehicleStatus(email, vehicleId, updateDto)
+                .orElse("OK");
+        return new SocketResponse(Map.of("msg", message));
+    }
+
+    private VehicleStatusUpdateDto createUpdateDto(Map<String, Object> data) {
         VehicleStatusUpdateDto updateDto = new VehicleStatusUpdateDto();
         updateDto.setIsUsingNavi(getSafeValueFromMap(data, "isUsingNavi", Boolean.class));
         updateDto.setLongitude(getSafeValueFromMap(data, "longitude", Double.class));
@@ -78,22 +93,17 @@ public class SocketController {
         updateDto.setMeterPerSec(getSafeValueFromMap(data, "meterPerSec", Double.class));
         updateDto.setDirection(getSafeValueFromMap(data, "direction", Double.class));
         updateDto.setLocalDateTime(parseToLocalDateTime(getSafeValueFromMap(data, "timestamp", String.class)));
+        return updateDto;
+    }
 
-        if (!isEmergencyVehicle) {
-            vehicleStatusService.updateVehicleStatus(vehicleId, updateDto);
-            return new SocketResponse(Map.of("msg", "OK"));
-        }
-
+    private void processEmergencyVehicle(Map<String, Object> data, String email, Long vehicleId,
+                                         VehicleStatusUpdateDto updateDto) {
         updateDto.setOnEmergencyEvent(getSafeValueFromMap(data, "onEmergencyEvent", Boolean.class));
 
         if (updateDto.getIsUsingNavi() && updateDto.getOnEmergencyEvent()) {
             updateDto.setNaviPathId(getSafeValueFromMap(data, "naviPathId", Long.class));
             updateDto.setEmergencyEventId(getSafeValueFromMap(data, "emergencyEventId", Long.class));
         }
-        
-        vehicleStatusService.updateEmergencyVehicleStatus(email, vehicleId, updateDto);
-
-        return new SocketResponse(Map.of("msg", "OK"));
     }
 
     public void deleteStatus(Map<String, Object> attributes) {

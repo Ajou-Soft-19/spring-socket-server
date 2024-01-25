@@ -75,7 +75,8 @@ public class VehicleStatusService {
 
     }
 
-    public void updateEmergencyVehicleStatus(String email, Long vehicleId, VehicleStatusUpdateDto updateDto) {
+    public Optional<String> updateEmergencyVehicleStatus(String email, Long vehicleId,
+                                                         VehicleStatusUpdateDto updateDto) {
         VehicleStatus vehicleStatus = findVehicleStatusByVehicleId(vehicleId);
         Point coordinate = geometryFactory.createPoint(
                 new Coordinate(updateDto.getLongitude(), updateDto.getLatitude()));
@@ -84,10 +85,13 @@ public class VehicleStatusService {
                 updateDto.getDirection(), updateDto.getLocalDateTime());
 
         if (updateDto.getIsUsingNavi() && updateDto.getOnEmergencyEvent()) {
-            findAndUpdateCurrentPathPoint(email, vehicleId, updateDto.getNaviPathId(), updateDto.getEmergencyEventId(),
+            return findAndUpdateCurrentPathPoint(email, vehicleId, updateDto.getNaviPathId(),
+                    updateDto.getEmergencyEventId(),
                     updateDto.getLongitude(),
                     updateDto.getLatitude());
         }
+
+        return Optional.empty();
     }
 
     private void logVehicleLocation(Long vehicleId, Point coordinate, LocalDateTime lastUpdateTime) {
@@ -96,9 +100,10 @@ public class VehicleStatusService {
     }
 
     // TODO: 사용자, 차량 검증 로직 추가
-    private void findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long naviPathId, Long emergencyEventId,
-                                               double longitude,
-                                               double latitude) {
+    private Optional<String> findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long naviPathId,
+                                                           Long emergencyEventId,
+                                                           double longitude,
+                                                           double latitude) {
         NavigationPath navigationPath = findNavigationPathById(naviPathId);
         EmergencyEvent emergencyEvent = findEmergencyEventByNaviPath(navigationPath);
 
@@ -116,7 +121,7 @@ public class VehicleStatusService {
                 navigationPath.getCurrentPathPoint());
 
         if (closestPathPoint.isEmpty()) {
-            return;
+            return Optional.empty();
         }
 
         log.info("update idx from {}, to {}", navigationPath.getCurrentPathPoint(), closestPathPoint.get().getIndex());
@@ -125,6 +130,7 @@ public class VehicleStatusService {
                 closestPathPoint.get().getIndex(), email);
 
         redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
+        return Optional.of(String.format("Passed pathPoint %d", closestPathPoint.get().getIndex()));
     }
 
     private Optional<PathPoint> findClosestPathPoint(List<PathPoint> pathPoints, double longitude, double latitude,
