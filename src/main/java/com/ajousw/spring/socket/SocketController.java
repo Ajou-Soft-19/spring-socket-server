@@ -79,11 +79,20 @@ public class SocketController {
         updateDto.setDirection(getSafeValueFromMap(data, "direction", Double.class));
         updateDto.setLocalDateTime(parseToLocalDateTime(getSafeValueFromMap(data, "timestamp", String.class)));
 
-        if (isEmergencyVehicle && updateDto.getIsUsingNavi()) {
-            updateDto.setNaviPathId(getSafeValueFromMap(data, "naviPathId", Long.class));
+        if (!isEmergencyVehicle) {
+            vehicleStatusService.updateVehicleStatus(vehicleId, updateDto);
+            return new SocketResponse(Map.of("msg", "OK"));
         }
 
-        vehicleStatusService.updateVehicleStatus(email, vehicleId, updateDto, isEmergencyVehicle);
+        updateDto.setOnEmergencyEvent(getSafeValueFromMap(data, "onEmergencyEvent", Boolean.class));
+
+        if (updateDto.getIsUsingNavi() && updateDto.getOnEmergencyEvent()) {
+            updateDto.setNaviPathId(getSafeValueFromMap(data, "naviPathId", Long.class));
+            updateDto.setEmergencyEventId(getSafeValueFromMap(data, "emergencyEventId", Long.class));
+        }
+        
+        vehicleStatusService.updateEmergencyVehicleStatus(email, vehicleId, updateDto);
+
         return new SocketResponse(Map.of("msg", "OK"));
     }
 

@@ -10,6 +10,8 @@ import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleLocationLogRepository;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleRepository;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleStatusRepository;
+import com.ajousw.spring.domain.warn.entity.EmergencyEvent;
+import com.ajousw.spring.domain.warn.entity.repository.EmergencyEventRepository;
 import com.ajousw.spring.socket.handler.message.dto.CurrentPointUpdateDto;
 import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
 import com.ajousw.spring.socket.handler.pubsub.RedisMessagePublisher;
@@ -35,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class VehicleStatusService {
     private final VehicleLocationLogRepository vehicleLocationLogRepository;
     private final NavigationPathRepository navigationPathRepository;
+    private final EmergencyEventRepository emergencyEventRepository;
     private final VehicleStatusRepository vehicleStatusRepository;
     private final VehicleRepository vehicleRepository;
     private final MemberJpaRepository memberRepository;
@@ -51,7 +54,10 @@ public class VehicleStatusService {
             throw new IllegalArgumentException("본인이 소유한 차량이 아닙니다.");
         }
 
-        vehicleStatusRepository.deleteByVehicleId(vehicle.getVehicleId());
+        if (vehicleStatusRepository.existsByVehicle(vehicle)) {
+            throw new IllegalArgumentException("Session Already Exist");
+        }
+
         VehicleStatus vehicleStatus = new VehicleStatus(sessionId, vehicle, false, null, -1, -1, LocalDateTime.now(),
                 isEmergencyVehicle);
         vehicleStatusRepository.save(vehicleStatus);
@@ -59,8 +65,7 @@ public class VehicleStatusService {
         return vehicleStatus.getVehicleStatusId();
     }
 
-    public void updateVehicleStatus(String email, Long vehicleId, VehicleStatusUpdateDto updateDto,
-                                    boolean isEmergencyVehicle) {
+    public void updateVehicleStatus(Long vehicleId, VehicleStatusUpdateDto updateDto) {
         VehicleStatus vehicleStatus = findVehicleStatusByVehicleId(vehicleId);
         Point coordinate = geometryFactory.createPoint(
                 new Coordinate(updateDto.getLongitude(), updateDto.getLatitude()));
@@ -68,12 +73,19 @@ public class VehicleStatusService {
         vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), coordinate, updateDto.getMeterPerSec(),
                 updateDto.getDirection(), updateDto.getLocalDateTime());
 
-        if (isEmergencyVehicle) {
-            logVehicleLocation(vehicleId, coordinate, updateDto.getLocalDateTime());
-        }
+    }
 
-        if (isEmergencyVehicle && updateDto.getIsUsingNavi()) {
-            findAndUpdateCurrentPathPoint(email, updateDto.getNaviPathId(), updateDto.getLongitude(),
+    public void updateEmergencyVehicleStatus(String email, Long vehicleId, VehicleStatusUpdateDto updateDto) {
+        VehicleStatus vehicleStatus = findVehicleStatusByVehicleId(vehicleId);
+        Point coordinate = geometryFactory.createPoint(
+                new Coordinate(updateDto.getLongitude(), updateDto.getLatitude()));
+
+        vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), coordinate, updateDto.getMeterPerSec(),
+                updateDto.getDirection(), updateDto.getLocalDateTime());
+
+        if (updateDto.getIsUsingNavi() && updateDto.getOnEmergencyEvent()) {
+            findAndUpdateCurrentPathPoint(email, vehicleId, updateDto.getNaviPathId(), updateDto.getEmergencyEventId(),
+                    updateDto.getLongitude(),
                     updateDto.getLatitude());
         }
     }
@@ -83,8 +95,21 @@ public class VehicleStatusService {
         vehicleLocationLogRepository.save(vehicleLocationLog);
     }
 
-    private void findAndUpdateCurrentPathPoint(String email, Long naviPathId, double longitude, double latitude) {
+    // TODO: 사용자, 차량 검증 로직 추가
+    private void findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long naviPathId, Long emergencyEventId,
+                                               double longitude,
+                                               double latitude) {
         NavigationPath navigationPath = findNavigationPathById(naviPathId);
+        EmergencyEvent emergencyEvent = findEmergencyEventByNaviPath(navigationPath);
+
+        if (!Objects.equals(emergencyEvent.getNavigationPath().getNaviPathId(), naviPathId)) {
+            throw new IllegalArgumentException("Not Correct EmergencyEvent, NavigationPath Pair");
+        }
+
+        if (!Objects.equals(emergencyEvent.getVehicle().getVehicleId(), vehicleId)) {
+            throw new IllegalArgumentException("Not Correct EmergencyEvent, VehicleId Pair");
+        }
+
         List<PathPoint> pathPoints = navigationPath.getPathPoints();
 
         Optional<PathPoint> closestPathPoint = findClosestPathPoint(pathPoints, longitude, latitude,
@@ -137,10 +162,16 @@ public class VehicleStatusService {
         vehicleStatusRepository.deleteByVehicleId(vehicleId);
     }
 
+    private EmergencyEvent findEmergencyEventByNaviPath(NavigationPath navigationPath) {
+        return emergencyEventRepository.findByNavigationPath(navigationPath)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No Such EmergencyEvent"));
+    }
+
     private NavigationPath findNavigationPathById(Long naviPathId) {
-        return navigationPathRepository.findNavigationPathByNaviPathId(naviPathId).orElseThrow(() -> {
-            return new IllegalArgumentException("No Such NavigationPath");
-        });
+        return navigationPathRepository.findNavigationPathByNaviPathId(naviPathId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No Such NavigationPath"));
     }
 
     private VehicleStatus findVehicleStatusByVehicleId(Long vehicleId) {
