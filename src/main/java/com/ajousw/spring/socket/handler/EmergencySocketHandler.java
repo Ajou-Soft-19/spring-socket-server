@@ -1,33 +1,30 @@
 package com.ajousw.spring.socket.handler;
 
-import com.ajousw.spring.socket.SocketController;
+import com.ajousw.spring.socket.EmergencySocketController;
 import com.ajousw.spring.socket.handler.message.SocketRequest;
 import com.ajousw.spring.socket.handler.message.SocketResponse;
 import com.ajousw.spring.socket.handler.message.convert.SocketMessageConverter;
-import java.io.IOException;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketHandler;
-import org.springframework.web.socket.WebSocketMessage;
-import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.*;
+
+import java.io.IOException;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class EmergencySocketHandler implements WebSocketHandler {
 
-    private final SocketController socketController;
+    private final EmergencySocketController socketController;
     private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
     private final SocketMessageConverter socketMessageConverter;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        log.info("<{}> Connected", session.getId());
+        log.info("<{}> Emergency Vehicle Connected", session.getId());
         log.info("<{}> email : {}", session.getId(), session.getAttributes().get("email"));
         sessions.add(session);
     }
@@ -40,7 +37,7 @@ public class EmergencySocketHandler implements WebSocketHandler {
         }
 
         long startTime = System.currentTimeMillis();
-        SocketResponse socketResponse = socketController.handleSocketRequest(socketRequest, session, true);
+        SocketResponse socketResponse = socketController.handleSocketRequest(socketRequest, session);
         long endTime = System.currentTimeMillis();
 
         log.info("<{}> Response Time = {}ms", session.getId(), endTime - startTime);

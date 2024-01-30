@@ -9,8 +9,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -18,6 +16,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
@@ -46,6 +47,7 @@ public class JwtFilter extends OncePerRequestFilter {
         // 잘못된 토큰일 경우 (잘못된 토큰, Refresh token을 넣은 경우)
         if (!tokenValidationResult.isValid() || tokenValidationResult.getTokenType() != TokenType.ACCESS) {
             handleWrongToken(request, response, filterChain, tokenValidationResult);
+
             return;
         }
 
@@ -68,7 +70,8 @@ public class JwtFilter extends OncePerRequestFilter {
         String role = (String) tokenValidationResult.getClaims().get("auth");
         String username = (String) tokenValidationResult.getClaims().get("username");
         String tokenId = (String) tokenValidationResult.getClaims().get("tokenId");
-//        String exp = (Date) tokenValidationResult.getClaims().get("exp");
+
+        request.setAttribute("result", tokenValidationResult);
         request.setAttribute("role", role);
         request.setAttribute("email", email);
         request.setAttribute("username", username);

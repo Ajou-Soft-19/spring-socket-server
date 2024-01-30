@@ -3,15 +3,18 @@ package com.ajousw.spring.socket.handler.message.convert;
 import com.ajousw.spring.socket.handler.message.SocketRequest;
 import com.ajousw.spring.socket.handler.message.SocketResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.util.Map;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
+
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -34,16 +37,7 @@ public class SocketMessageConverter {
             return null;
         }
 
-        if (checkJwtToken(session, socketRequest.getJwt())) {
-            sendTextMessage(session,
-                    "Authentication Error: Please use the token used during Handshake.", 420);
-            return null;
-        }
         return socketRequest;
-    }
-
-    private boolean checkJwtToken(WebSocketSession session, String jwt) throws IOException {
-        return !Objects.equals(session.getHandshakeHeaders().getFirst("Authorization"), jwt);
     }
 
     public <T> T convertFromJson(String json, Class<T> clazz) {
@@ -72,5 +66,37 @@ public class SocketMessageConverter {
     public void sendObjectMessage(WebSocketSession session, Object message, int code) throws IOException {
         String responseJson = convertToJson(Map.of("data", new SocketResponse(code, message)));
         session.sendMessage(new TextMessage(responseJson));
+    }
+
+    public <T> T getSafeValueFromMap(Map<String, Object> data, String key, Class<T> type) {
+        if (!data.containsKey(key)) {
+            throw new IllegalArgumentException(String.format("Missing data %s", key));
+        }
+
+        Object value = data.get(key);
+
+        if (type == Long.class && value instanceof Integer) {
+            return type.cast(((Integer) value).longValue());
+        }
+
+        if (type == Double.class && value instanceof Integer) {
+            return type.cast(((Integer) value).doubleValue());
+        }
+
+        if (!type.isInstance(value)) {
+            throw new IllegalArgumentException(
+                    String.format("Wrong data type for key %s, Need %s, but was %s", key, type,
+                            value.getClass()));
+        }
+
+        return type.cast(value);
+    }
+
+    public LocalDateTime parseToLocalDateTime(String timestampStr) {
+        try {
+            return LocalDateTime.parse(timestampStr, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Invalid format for timestamp", e);
+        }
     }
 }
