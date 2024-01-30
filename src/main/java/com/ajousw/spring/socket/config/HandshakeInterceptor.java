@@ -35,7 +35,6 @@ public class HandshakeInterceptor implements org.springframework.web.socket.serv
     private boolean setMemberInfoToAttributes(ServletServerHttpRequest request, Map<String, Object> attributes) {
         HttpServletRequest httpRequest = request.getServletRequest();
         TokenValidationResult result = (TokenValidationResult) httpRequest.getAttribute(VALIDATION_RESULT_KEY);
-        log.info("1");
 
         if (Objects.equals(httpRequest.getRequestURI(), "/ws/my-location")) {
             if (result.getTokenStatus() == WRONG_AUTH_HEADER) {
@@ -52,7 +51,6 @@ public class HandshakeInterceptor implements org.springframework.web.socket.serv
         }
 
         if (Objects.equals(httpRequest.getRequestURI(), "/ws/emergency-location")) {
-            log.info("1");
             return setEmergencyLoginInfo(attributes, httpRequest, result);
         }
 

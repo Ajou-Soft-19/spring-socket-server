@@ -80,6 +80,7 @@ public class MemberSocketController {
         return updateDto;
     }
 
+    // TODO: NULL 터짐
     public void deleteStatus(Map<String, Object> attributes) {
         String vehicleStatusId = (String) attributes.get("vehicleStatusId");
         if (vehicleStatusId == null) {
