@@ -16,6 +16,10 @@ import com.ajousw.spring.socket.handler.message.dto.CurrentPointUpdateDto;
 import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
 import com.ajousw.spring.socket.handler.pubsub.RedisMessagePublisher;
 import com.ajousw.spring.util.CoordinateUtil;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
@@ -24,11 +28,6 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
 // TODO: 영어로 바꾸기...
 @Slf4j
@@ -114,13 +113,14 @@ public class EmergencyVehicleStatusService {
             return Optional.empty();
         }
 
-        log.info("update idx from {}, to {}", navigationPath.getCurrentPathPoint(), closestPathPoint.get().getIndex());
+        log.info("update idx from {}, to {}", navigationPath.getCurrentPathPoint(),
+                closestPathPoint.get().getPointIndex());
 
         CurrentPointUpdateDto currentPointUpdateDto = new CurrentPointUpdateDto(naviPathId,
-                closestPathPoint.get().getIndex(), email);
+                closestPathPoint.get().getPointIndex(), email);
 
         redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
-        return Optional.of(String.format("Passed pathPoint %d", closestPathPoint.get().getIndex()));
+        return Optional.of(String.format("Passed pathPoint %d", closestPathPoint.get().getPointIndex()));
     }
 
     private Optional<PathPoint> findClosestPathPoint(List<PathPoint> pathPoints, double longitude, double latitude,
@@ -142,7 +142,7 @@ public class EmergencyVehicleStatusService {
             }
         }
 
-        if (closestPoint == null || closestPoint.getIndex() <= currentPathPointIndex) {
+        if (closestPoint == null || closestPoint.getPointIndex() <= currentPathPointIndex) {
             return Optional.empty();
         }
 
