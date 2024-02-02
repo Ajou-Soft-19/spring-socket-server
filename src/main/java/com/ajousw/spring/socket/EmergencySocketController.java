@@ -7,12 +7,11 @@ import com.ajousw.spring.socket.handler.message.SocketRequest;
 import com.ajousw.spring.socket.handler.message.SocketResponse;
 import com.ajousw.spring.socket.handler.message.convert.SocketMessageConverter;
 import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
-
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -91,7 +90,6 @@ public class EmergencySocketController {
         updateDto.setOnEmergencyEvent(messageConverter.getSafeValueFromMap(data, "onEmergencyEvent", Boolean.class));
 
         if (updateDto.getIsUsingNavi() && updateDto.getOnEmergencyEvent()) {
-            updateDto.setNaviPathId(messageConverter.getSafeValueFromMap(data, "naviPathId", Long.class));
             updateDto.setEmergencyEventId(messageConverter.getSafeValueFromMap(data, "emergencyEventId", Long.class));
         }
     }

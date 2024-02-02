@@ -13,6 +13,5 @@ public class VehicleStatusUpdateDto {
     private LocalDateTime localDateTime;
 
     private Boolean onEmergencyEvent;
-    private Long naviPathId;
     private Long emergencyEventId;
 }

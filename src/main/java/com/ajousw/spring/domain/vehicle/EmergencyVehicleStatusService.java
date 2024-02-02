@@ -74,7 +74,7 @@ public class EmergencyVehicleStatusService {
                 updateDto.getDirection(), updateDto.getLocalDateTime());
 
         if (updateDto.getIsUsingNavi() && updateDto.getOnEmergencyEvent()) {
-            return findAndUpdateCurrentPathPoint(email, vehicleId, updateDto.getNaviPathId(),
+            return findAndUpdateCurrentPathPoint(email, vehicleId,
                     updateDto.getEmergencyEventId(),
                     updateDto.getLongitude(),
                     updateDto.getLatitude());
@@ -89,16 +89,14 @@ public class EmergencyVehicleStatusService {
     }
 
     // TODO: 사용자, 차량 검증 로직 추가
-    private Optional<String> findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long naviPathId,
-                                                           Long emergencyEventId,
-                                                           double longitude,
-                                                           double latitude) {
-        NavigationPath navigationPath = findNavigationPathById(naviPathId);
-        EmergencyEvent emergencyEvent = findEmergencyEventByNaviPath(navigationPath);
+    private Optional<String> findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long emergencyEventId,
+                                                           double longitude, double latitude) {
+        EmergencyEvent emergencyEvent = findEmergencyEventById(emergencyEventId);
+        NavigationPath navigationPath = emergencyEvent.getNavigationPath();
 
-        if (!Objects.equals(emergencyEvent.getNavigationPath().getNaviPathId(), naviPathId)) {
-            throw new IllegalArgumentException("Not Correct EmergencyEvent, NavigationPath Pair");
-        }
+//        if (!Objects.equals(emergencyEvent.getNavigationPath().getNaviPathId(), naviPathId)) {
+//            throw new IllegalArgumentException("Not Correct EmergencyEvent, NavigationPath Pair");
+//        }
 
         if (!Objects.equals(emergencyEvent.getVehicle().getVehicleId(), vehicleId)) {
             throw new IllegalArgumentException("Not Correct EmergencyEvent, VehicleId Pair");
@@ -116,7 +114,7 @@ public class EmergencyVehicleStatusService {
         log.info("update idx from {}, to {}", navigationPath.getCurrentPathPoint(),
                 closestPathPoint.get().getPointIndex());
 
-        CurrentPointUpdateDto currentPointUpdateDto = new CurrentPointUpdateDto(naviPathId,
+        CurrentPointUpdateDto currentPointUpdateDto = new CurrentPointUpdateDto(navigationPath.getNaviPathId(),
                 closestPathPoint.get().getPointIndex(), email);
 
         redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
@@ -156,6 +154,12 @@ public class EmergencyVehicleStatusService {
 
     public void deleteVehicleStatus(Long vehicleId) {
         vehicleStatusRepository.deleteByVehicleId(vehicleId);
+    }
+
+    private EmergencyEvent findEmergencyEventById(Long emergencyPathId) {
+        return emergencyEventRepository.findById(emergencyPathId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No Such EmergencyEvent"));
     }
 
     private EmergencyEvent findEmergencyEventByNaviPath(NavigationPath navigationPath) {
