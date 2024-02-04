@@ -18,6 +18,8 @@ public class CurrentPointUpdateDto {
     @Min(0)
     private Long currentPoint;
 
+    private Long emergencyEventId;
+
     private String email;
 
 }

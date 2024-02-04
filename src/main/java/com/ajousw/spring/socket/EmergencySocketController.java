@@ -66,7 +66,7 @@ public class EmergencySocketController {
         checkInitialized(vehicleId);
 
         VehicleStatusUpdateDto updateDto = createUpdateDto(data);
-        processEmergencyVehicle(data, email, vehicleId, updateDto);
+        processEmergencyVehicle(data, updateDto);
 
         String message = vehicleStatusService.updateEmergencyVehicleStatus(email, vehicleId, updateDto)
                 .orElse("OK");
@@ -85,8 +85,7 @@ public class EmergencySocketController {
         return updateDto;
     }
 
-    private void processEmergencyVehicle(Map<String, Object> data, String email, Long vehicleId,
-                                         VehicleStatusUpdateDto updateDto) {
+    private void processEmergencyVehicle(Map<String, Object> data, VehicleStatusUpdateDto updateDto) {
         updateDto.setOnEmergencyEvent(messageConverter.getSafeValueFromMap(data, "onEmergencyEvent", Boolean.class));
 
         if (updateDto.getIsUsingNavi() && updateDto.getOnEmergencyEvent()) {

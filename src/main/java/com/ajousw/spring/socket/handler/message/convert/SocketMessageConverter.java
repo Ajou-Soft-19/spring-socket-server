@@ -1,20 +1,20 @@
 package com.ajousw.spring.socket.handler.message.convert;
 
+import com.ajousw.spring.socket.handler.message.MessageType;
 import com.ajousw.spring.socket.handler.message.SocketRequest;
 import com.ajousw.spring.socket.handler.message.SocketResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
-
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -63,8 +63,9 @@ public class SocketMessageConverter {
         session.sendMessage(new TextMessage(responseJson));
     }
 
-    public void sendObjectMessage(WebSocketSession session, Object message, int code) throws IOException {
-        String responseJson = convertToJson(Map.of("data", new SocketResponse(code, message)));
+    public void sendObjectMessage(WebSocketSession session, Object message, MessageType messageType)
+            throws IOException {
+        String responseJson = convertToJson(new SocketResponse(messageType, message));
         session.sendMessage(new TextMessage(responseJson));
     }
 

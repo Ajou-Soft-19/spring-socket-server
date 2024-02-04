@@ -73,14 +73,15 @@ public class EmergencyVehicleStatusService {
         vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), coordinate, updateDto.getMeterPerSec(),
                 updateDto.getDirection(), updateDto.getLocalDateTime());
 
-        if (updateDto.getIsUsingNavi() && updateDto.getOnEmergencyEvent()) {
-            return findAndUpdateCurrentPathPoint(email, vehicleId,
-                    updateDto.getEmergencyEventId(),
-                    updateDto.getLongitude(),
-                    updateDto.getLatitude());
+        if (!updateDto.getIsUsingNavi() || !updateDto.getOnEmergencyEvent()
+                || updateDto.getEmergencyEventId() == null) {
+            return Optional.empty();
         }
 
-        return Optional.empty();
+        return findAndUpdateCurrentPathPoint(email, vehicleId,
+                updateDto.getEmergencyEventId(),
+                updateDto.getLongitude(),
+                updateDto.getLatitude());
     }
 
     private void logVehicleLocation(Long vehicleId, Point coordinate, LocalDateTime lastUpdateTime) {
@@ -115,7 +116,7 @@ public class EmergencyVehicleStatusService {
                 closestPathPoint.get().getPointIndex());
 
         CurrentPointUpdateDto currentPointUpdateDto = new CurrentPointUpdateDto(navigationPath.getNaviPathId(),
-                closestPathPoint.get().getPointIndex(), email);
+                closestPathPoint.get().getPointIndex(), emergencyEventId, email);
 
         redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
         return Optional.of(String.format("Passed pathPoint %d", closestPathPoint.get().getPointIndex()));
@@ -157,9 +158,15 @@ public class EmergencyVehicleStatusService {
     }
 
     private EmergencyEvent findEmergencyEventById(Long emergencyPathId) {
-        return emergencyEventRepository.findById(emergencyPathId)
+        EmergencyEvent emergencyEvent = emergencyEventRepository.findById(emergencyPathId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No Such EmergencyEvent"));
+
+        if (!emergencyEvent.getIsActive()) {
+            throw new IllegalStateException("EmergencyEvent Already Ended");
+        }
+
+        return emergencyEvent;
     }
 
     private EmergencyEvent findEmergencyEventByNaviPath(NavigationPath navigationPath) {

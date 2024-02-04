@@ -11,15 +11,24 @@ import lombok.ToString;
 @NoArgsConstructor
 public class SocketResponse {
     public int code;
+    public MessageType messageType;
     public Object data;
 
     public SocketResponse(int code, Object data) {
         this.code = code;
+        this.messageType = MessageType.RESPONSE;
         this.data = data;
     }
 
     public SocketResponse(Object data) {
         this.code = ResponseStatusCode.OK;
+        this.messageType = MessageType.RESPONSE;
+        this.data = data;
+    }
+
+    public SocketResponse(MessageType messageType, Object data) {
+        this.code = ResponseStatusCode.OK;
+        this.messageType = messageType;
         this.data = data;
     }
 }

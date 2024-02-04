@@ -1,6 +1,7 @@
 package com.ajousw.spring.socket.handler.pubsub;
 
 import com.ajousw.spring.socket.handler.LocationSocketHandler;
+import com.ajousw.spring.socket.handler.message.MessageType;
 import com.ajousw.spring.socket.handler.message.dto.BroadcastDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -27,7 +28,7 @@ public class AlertBroadcastListener implements MessageListener {
         try {
             BroadcastDto broadcastDto = objectMapper.readValue(message.getBody(), BroadcastDto.class);
             getLocationSocketHandler().broadcastToTargetSession(broadcastDto.getTargetSession(),
-                    broadcastDto.getData());
+                    broadcastDto.getData(), MessageType.ALERT);
             log.info("broadcast alert message to {}", broadcastDto.getTargetSession());
         } catch (IOException e) {
             log.error("error while listening broadcast message");

@@ -1,18 +1,22 @@
 package com.ajousw.spring.socket.handler;
 
 import com.ajousw.spring.socket.MemberSocketController;
+import com.ajousw.spring.socket.handler.message.MessageType;
 import com.ajousw.spring.socket.handler.message.SocketRequest;
 import com.ajousw.spring.socket.handler.message.SocketResponse;
 import com.ajousw.spring.socket.handler.message.convert.SocketMessageConverter;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-import org.springframework.web.socket.*;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.WebSocketMessage;
+import org.springframework.web.socket.WebSocketSession;
 
 @Slf4j
 @Component
@@ -56,7 +60,7 @@ public class LocationSocketHandler implements WebSocketHandler {
     }
 
 
-    public void broadcastToTargetSession(Set<String> targetSessionId, Object message) {
+    public void broadcastToTargetSession(Set<String> targetSessionId, Object message, MessageType messageType) {
         List<WebSocketSession> targetSessions = sessions.stream()
                 .filter(s -> targetSessionId.contains(s.getId()))
                 .toList();
@@ -64,7 +68,7 @@ public class LocationSocketHandler implements WebSocketHandler {
         for (WebSocketSession session : targetSessions) {
             try {
                 if (session.isOpen()) {
-                    socketMessageConverter.sendObjectMessage(session, message, 200);
+                    socketMessageConverter.sendObjectMessage(session, message, messageType);
                 }
             } catch (IOException e) {
                 log.error("Failed to send message to {}", session.getId(), e);
