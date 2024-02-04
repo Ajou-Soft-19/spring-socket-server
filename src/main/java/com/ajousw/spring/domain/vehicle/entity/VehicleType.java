@@ -11,6 +11,7 @@ public enum VehicleType {
     FIRE_TRUCK_MEDIUM("FIRE_TRUCK_MEDIUM", "소방차 중형"),
     FIRE_TRUCK_LARGE("FIRE_TRUCK_LARGE", "소방차 대형");
 
+
     private final String messageEn;
     private final String messageKr;
 
