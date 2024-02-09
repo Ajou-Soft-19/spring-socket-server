@@ -4,6 +4,7 @@ import com.ajousw.spring.domain.member.repository.MemberJpaRepository;
 import com.ajousw.spring.domain.navigation.entity.NavigationPath;
 import com.ajousw.spring.domain.navigation.entity.PathPoint;
 import com.ajousw.spring.domain.navigation.entity.repository.NavigationPathRepository;
+import com.ajousw.spring.domain.util.CoordinateUtil;
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
 import com.ajousw.spring.domain.vehicle.entity.VehicleLocationLog;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
@@ -15,7 +16,6 @@ import com.ajousw.spring.domain.warn.entity.repository.EmergencyEventRepository;
 import com.ajousw.spring.socket.handler.message.dto.CurrentPointUpdateDto;
 import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
 import com.ajousw.spring.socket.handler.pubsub.RedisMessagePublisher;
-import com.ajousw.spring.util.CoordinateUtil;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -67,10 +67,10 @@ public class EmergencyVehicleStatusService {
     public Optional<String> updateEmergencyVehicleStatus(String email, Long vehicleId,
                                                          VehicleStatusUpdateDto updateDto) {
         VehicleStatus vehicleStatus = findVehicleStatusByVehicleId(vehicleId);
-        Point coordinate = geometryFactory.createPoint(
+        Point currnetPoint = geometryFactory.createPoint(
                 new Coordinate(updateDto.getLongitude(), updateDto.getLatitude()));
 
-        vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), coordinate, updateDto.getMeterPerSec(),
+        vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), currnetPoint, updateDto.getMeterPerSec(),
                 updateDto.getDirection(), updateDto.getLocalDateTime());
 
         if (!updateDto.getIsUsingNavi() || !updateDto.getOnEmergencyEvent()
@@ -89,15 +89,10 @@ public class EmergencyVehicleStatusService {
         vehicleLocationLogRepository.save(vehicleLocationLog);
     }
 
-    // TODO: 사용자, 차량 검증 로직 추가
     private Optional<String> findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long emergencyEventId,
                                                            double longitude, double latitude) {
         EmergencyEvent emergencyEvent = findEmergencyEventById(emergencyEventId);
         NavigationPath navigationPath = emergencyEvent.getNavigationPath();
-
-//        if (!Objects.equals(emergencyEvent.getNavigationPath().getNaviPathId(), naviPathId)) {
-//            throw new IllegalArgumentException("Not Correct EmergencyEvent, NavigationPath Pair");
-//        }
 
         if (!Objects.equals(emergencyEvent.getVehicle().getVehicleId(), vehicleId)) {
             throw new IllegalArgumentException("Not Correct EmergencyEvent, VehicleId Pair");
@@ -108,16 +103,20 @@ public class EmergencyVehicleStatusService {
         Optional<PathPoint> closestPathPoint = findClosestPathPoint(pathPoints, longitude, latitude,
                 navigationPath.getCurrentPathPoint());
 
+        CurrentPointUpdateDto currentPointUpdateDto;
         if (closestPathPoint.isEmpty()) {
+            currentPointUpdateDto = new CurrentPointUpdateDto(navigationPath.getNaviPathId(),
+                    navigationPath.getCurrentPathPoint(),
+                    emergencyEventId, email, longitude, latitude);
+            redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
             return Optional.empty();
         }
 
         log.info("update idx from {}, to {}", navigationPath.getCurrentPathPoint(),
                 closestPathPoint.get().getPointIndex());
 
-        CurrentPointUpdateDto currentPointUpdateDto = new CurrentPointUpdateDto(navigationPath.getNaviPathId(),
-                closestPathPoint.get().getPointIndex(), emergencyEventId, email);
-
+        currentPointUpdateDto = new CurrentPointUpdateDto(navigationPath.getNaviPathId(),
+                closestPathPoint.get().getPointIndex(), emergencyEventId, email, longitude, latitude);
         redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
         return Optional.of(String.format("Passed pathPoint %d", closestPathPoint.get().getPointIndex()));
     }

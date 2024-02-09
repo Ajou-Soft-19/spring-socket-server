@@ -7,12 +7,11 @@ import com.ajousw.spring.socket.handler.message.SocketRequest;
 import com.ajousw.spring.socket.handler.message.SocketResponse;
 import com.ajousw.spring.socket.handler.message.convert.SocketMessageConverter;
 import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
-
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -23,7 +22,9 @@ public class MemberSocketController {
 
     public SocketResponse handleSocketRequest(SocketRequest socketRequest, WebSocketSession webSocketSession) {
         RequestType requestType = socketRequest.getRequestType();
-        log.info("<{}> request type [{}]", webSocketSession.getId(), requestType);
+        if (requestType == RequestType.INIT) {
+            log.info("<{}> request type [{}]", webSocketSession.getId(), requestType);
+        }
         Map<String, Object> attributes = webSocketSession.getAttributes();
 
         return handleRequest(socketRequest, requestType, attributes, webSocketSession.getId());

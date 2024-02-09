@@ -16,10 +16,14 @@ public class CurrentPointUpdateDto {
     private Long naviPathId;
 
     @Min(0)
-    private Long currentPoint;
+    private Long currentPathPoint;
 
     private Long emergencyEventId;
 
     private String email;
+
+    private Double currentLongitude;
+
+    private Double currentLatitude;
 
 }

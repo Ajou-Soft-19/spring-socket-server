@@ -1,4 +1,4 @@
-package com.ajousw.spring.util;
+package com.ajousw.spring.domain.util;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

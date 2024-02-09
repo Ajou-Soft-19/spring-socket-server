@@ -50,7 +50,7 @@ public class LocationSocketHandler implements WebSocketHandler {
         long startTime = System.currentTimeMillis();
         SocketResponse socketResponse = memberSocketController.handleSocketRequest(socketRequest, session);
         long endTime = System.currentTimeMillis();
-        log.info("<{}> Response Time = {}ms", session.getId(), endTime - startTime);
+        //log.info("<{}> Response Time = {}ms", session.getId(), endTime - startTime);
         if (!session.isOpen()) {
             log.info("Session Closed while sending data: " + session.getId());
             return;
