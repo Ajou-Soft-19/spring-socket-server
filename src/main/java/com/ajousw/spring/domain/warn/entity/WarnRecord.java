@@ -2,17 +2,23 @@ package com.ajousw.spring.domain.warn.entity;
 
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
 import com.ajousw.spring.domain.warn.entity.WarnRecord.WarnRecordId;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MapsId;
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 import org.springframework.data.domain.Persistable;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
-import java.util.Objects;
 
 @Entity
 @Getter
@@ -87,10 +93,8 @@ public class WarnRecord implements Persistable<WarnRecordId> {
                 this.warnRecordId.sessionId);
     }
 
-    // 그냥 True? 어차피 수정할일 없으니까
     @Override
     public boolean isNew() {
-//        return this.getCreatedDate() == null;
         return true;
     }
 }

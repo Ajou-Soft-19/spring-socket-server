@@ -1,13 +1,13 @@
 package com.ajousw.spring.domain.vehicle;
 
 import com.ajousw.spring.domain.member.repository.MemberJpaRepository;
+import com.ajousw.spring.domain.navigation.dto.PathPointDto;
+import com.ajousw.spring.domain.navigation.entity.CheckPoint;
+import com.ajousw.spring.domain.navigation.entity.MapLocation;
 import com.ajousw.spring.domain.navigation.entity.NavigationPath;
 import com.ajousw.spring.domain.navigation.entity.PathPoint;
-import com.ajousw.spring.domain.navigation.entity.repository.NavigationPathRepository;
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
-import com.ajousw.spring.domain.vehicle.entity.VehicleLocationLog;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
-import com.ajousw.spring.domain.vehicle.entity.repository.VehicleLocationLogRepository;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleRepository;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleStatusRepository;
 import com.ajousw.spring.domain.warn.entity.EmergencyEvent;
@@ -17,6 +17,7 @@ import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
 import com.ajousw.spring.socket.handler.pubsub.RedisMessagePublisher;
 import com.ajousw.spring.util.CoordinateUtil;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -35,8 +36,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 public class EmergencyVehicleStatusService {
-    private final VehicleLocationLogRepository vehicleLocationLogRepository;
-    private final NavigationPathRepository navigationPathRepository;
     private final EmergencyEventRepository emergencyEventRepository;
     private final VehicleStatusRepository vehicleStatusRepository;
     private final VehicleRepository vehicleRepository;
@@ -78,26 +77,16 @@ public class EmergencyVehicleStatusService {
             return Optional.empty();
         }
 
-        return findAndUpdateCurrentPathPoint(email, vehicleId,
+        return updateCurrentPathPoint(email, vehicleId,
                 updateDto.getEmergencyEventId(),
                 updateDto.getLongitude(),
                 updateDto.getLatitude());
     }
 
-    private void logVehicleLocation(Long vehicleId, Point coordinate, LocalDateTime lastUpdateTime) {
-        VehicleLocationLog vehicleLocationLog = new VehicleLocationLog(vehicleId, coordinate, lastUpdateTime);
-        vehicleLocationLogRepository.save(vehicleLocationLog);
-    }
-
-    // TODO: 사용자, 차량 검증 로직 추가
-    private Optional<String> findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long emergencyEventId,
-                                                           double longitude, double latitude) {
+    private Optional<String> updateCurrentPathPoint(String email, Long vehicleId, Long emergencyEventId,
+                                                    double longitude, double latitude) {
         EmergencyEvent emergencyEvent = findEmergencyEventById(emergencyEventId);
         NavigationPath navigationPath = emergencyEvent.getNavigationPath();
-
-//        if (!Objects.equals(emergencyEvent.getNavigationPath().getNaviPathId(), naviPathId)) {
-//            throw new IllegalArgumentException("Not Correct EmergencyEvent, NavigationPath Pair");
-//        }
 
         if (!Objects.equals(emergencyEvent.getVehicle().getVehicleId(), vehicleId)) {
             throw new IllegalArgumentException("Not Correct EmergencyEvent, VehicleId Pair");
@@ -111,15 +100,71 @@ public class EmergencyVehicleStatusService {
         if (closestPathPoint.isEmpty()) {
             return Optional.empty();
         }
+        Long curPathIdx = closestPathPoint.get().getPointIndex();
+        Long oldPathIdx = navigationPath.getCurrentPathPoint();
 
-        log.info("update idx from {}, to {}", navigationPath.getCurrentPathPoint(),
-                closestPathPoint.get().getPointIndex());
+        navigationPath.updateCurrentPathPoint(curPathIdx);
+        log.info("update idx from {}, to {}", oldPathIdx, curPathIdx);
 
         CurrentPointUpdateDto currentPointUpdateDto = new CurrentPointUpdateDto(navigationPath.getNaviPathId(),
                 closestPathPoint.get().getPointIndex(), emergencyEventId, email);
 
         redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
         return Optional.of(String.format("Passed pathPoint %d", closestPathPoint.get().getPointIndex()));
+    }
+
+    private void updateNextCheckPoint(NavigationPath navigationPath,
+                                      Long emergencyEventId,
+                                      Long oldPathIdx,
+                                      Long curPathIdx,
+                                      List<CheckPoint> checkPoints) {
+        Optional<CheckPoint> nextCheckPointOptional = findNextCheckPoint(curPathIdx, oldPathIdx,
+                checkPoints);
+        CheckPoint nextCheckPoint;
+        // 체크포인트가 하나도 없는 경우를 처리하기 위한 예외
+        nextCheckPoint = nextCheckPointOptional.orElseGet(() -> checkPoints.stream()
+                .filter(c -> c.getPointIndex() <= curPathIdx)
+                .max(Comparator.comparing(CheckPoint::getPointIndex))
+                .orElse(null));
+
+        if (nextCheckPoint == null) {
+            return;
+        }
+        navigationPath.updateCheckPoint(nextCheckPoint.getPointIndex());
+
+        List<PathPointDto> filteredPathPoints = navigationPath.getPathPoints().stream()
+                .filter(p -> filterPathInCheckPoint(curPathIdx, nextCheckPoint, p))
+                .map(PathPointDto::new).toList();
+    }
+
+    private Optional<CheckPoint> findNextCheckPoint(Long curPathIdx, Long oldPathIdx, List<CheckPoint> checkPoints) {
+        Optional<CheckPoint> previousCheckPointOptional = checkPoints.stream()
+                .filter(c -> c.getPointIndex() > oldPathIdx && c.getPointIndex() <= curPathIdx)
+                .max(Comparator.comparing(CheckPoint::getPointIndex));
+
+        if (previousCheckPointOptional.isEmpty()) {
+            return Optional.empty();
+        }
+
+        CheckPoint previousCheckPoint = previousCheckPointOptional.get();
+
+        return checkPoints.stream()
+                .filter(c -> c.getPointIndex() > previousCheckPoint.getPointIndex())
+                .min(Comparator.comparing(CheckPoint::getPointIndex));
+    }
+
+    private boolean filterPathInCheckPoint(Long curPathIdx, CheckPoint nextCheckPoint, PathPoint targetPathPoint) {
+        if (curPathIdx <= targetPathPoint.getPointIndex()
+                && targetPathPoint.getPointIndex() <= nextCheckPoint.getPointIndex()) {
+            return true;
+        }
+        MapLocation checkPointLocation
+                = new MapLocation(nextCheckPoint.getCoordinate().getY(), nextCheckPoint.getCoordinate().getX());
+        MapLocation pathPointLocation
+                = new MapLocation(targetPathPoint.getCoordinate().getY(), targetPathPoint.getCoordinate().getX());
+        double distance = CoordinateUtil.calculateDistance(checkPointLocation, pathPointLocation);
+
+        return distance <= checkPointRadius;
     }
 
     private Optional<PathPoint> findClosestPathPoint(List<PathPoint> pathPoints, double longitude, double latitude,
@@ -153,6 +198,7 @@ public class EmergencyVehicleStatusService {
         return Optional.of(closestPoint);
     }
 
+
     public void deleteVehicleStatus(Long vehicleId) {
         vehicleStatusRepository.deleteByVehicleId(vehicleId);
     }
@@ -167,18 +213,6 @@ public class EmergencyVehicleStatusService {
         }
 
         return emergencyEvent;
-    }
-
-    private EmergencyEvent findEmergencyEventByNaviPath(NavigationPath navigationPath) {
-        return emergencyEventRepository.findByNavigationPath(navigationPath)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No Such EmergencyEvent"));
-    }
-
-    private NavigationPath findNavigationPathById(Long naviPathId) {
-        return navigationPathRepository.findNavigationPathByNaviPathId(naviPathId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No Such NavigationPath"));
     }
 
     private VehicleStatus findVehicleStatusByVehicleId(Long vehicleId) {

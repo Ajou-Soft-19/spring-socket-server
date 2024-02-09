@@ -1,6 +1,5 @@
 package com.ajousw.spring.domain.warn.entity.dto;
 
-import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -13,6 +12,15 @@ public class WarnRecordDto {
 
     private Long checkPointId;
 
-    private List<Long> targetVehicles;
+    private String sessionId;
 
+    private Double longitude;
+
+    private Double latitude;
+
+    private Double meterPerSec;
+
+    private Double direction;
+
+    private Boolean usingNavi;
 }

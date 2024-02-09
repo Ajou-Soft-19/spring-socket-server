@@ -2,7 +2,7 @@ package com.ajousw.spring.domain.navigation.entity;
 
 import com.ajousw.spring.domain.member.Member;
 import com.ajousw.spring.domain.member.repository.BaseTimeEntity;
-import com.ajousw.spring.domain.navigation.Provider;
+import com.ajousw.spring.domain.navigation.api.provider.Provider;
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
@@ -20,6 +20,7 @@ import jakarta.persistence.OneToMany;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.DynamicUpdate;
@@ -69,9 +70,55 @@ public class NavigationPath extends BaseTimeEntity {
 
     private Long currentPathPoint;
 
-    private Long pathPointSize;
+    private Long currentCheckPoint;
 
     @OneToMany(mappedBy = "navigationPath", fetch = FetchType.LAZY)
     private final List<PathPoint> pathPoints = new ArrayList<>();
 
+    @OneToMany(mappedBy = "navigationPath", fetch = FetchType.LAZY)
+    private final List<PathGuide> guides = new ArrayList<>();
+
+    @OneToMany(mappedBy = "navigationPath", fetch = FetchType.LAZY)
+    private final List<CheckPoint> checkPoints = new ArrayList<>();
+
+    private Long pathPointSize;
+
+    @Builder
+    public NavigationPath(Member member, Vehicle vehicle, Boolean isEmergencyPath, Provider provider,
+                          MapLocation sourceLocation,
+                          MapLocation destLocation,
+                          String queryType, Long distance, Long duration, Long currentPathPoint, Long pathPointSize) {
+        this.member = member;
+        this.vehicle = vehicle;
+        this.isEmergencyPath = isEmergencyPath;
+        this.provider = provider;
+        this.sourceLocation = sourceLocation;
+        this.destLocation = destLocation;
+        this.queryType = queryType;
+        this.distance = distance;
+        this.duration = duration;
+        this.currentPathPoint = currentPathPoint;
+        this.currentCheckPoint = 0L;
+        this.pathPointSize = pathPointSize;
+    }
+
+    public void updateCurrentPathPoint(Long currentIdx) {
+        if (currentIdx < 0 || this.pathPointSize <= currentIdx) {
+            throw new IllegalArgumentException(String.format("Wrong Index Range Not in [0 ~ %d]", pathPointSize - 1));
+        }
+
+        if (this.currentPathPoint >= currentIdx) {
+            return;
+        }
+
+        this.currentPathPoint = currentIdx;
+    }
+
+    public void updateCheckPoint(Long currentIdx) {
+        if (this.currentCheckPoint >= currentIdx) {
+            return;
+        }
+        this.currentCheckPoint = currentIdx;
+    }
 }
+
