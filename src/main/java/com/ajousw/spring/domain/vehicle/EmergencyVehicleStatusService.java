@@ -6,7 +6,6 @@ import com.ajousw.spring.domain.navigation.entity.PathPoint;
 import com.ajousw.spring.domain.navigation.entity.repository.NavigationPathRepository;
 import com.ajousw.spring.domain.util.CoordinateUtil;
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
-import com.ajousw.spring.domain.vehicle.entity.VehicleLocationLog;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleLocationLogRepository;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleRepository;
@@ -15,6 +14,7 @@ import com.ajousw.spring.domain.warn.entity.EmergencyEvent;
 import com.ajousw.spring.domain.warn.entity.repository.EmergencyEventRepository;
 import com.ajousw.spring.socket.handler.message.dto.CurrentPointUpdateDto;
 import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
+import com.ajousw.spring.socket.handler.pubsub.ContinuousAlertTransmitter;
 import com.ajousw.spring.socket.handler.pubsub.RedisMessagePublisher;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,6 +42,7 @@ public class EmergencyVehicleStatusService {
     private final VehicleRepository vehicleRepository;
     private final MemberJpaRepository memberRepository;
     private final RedisMessagePublisher redisMessagePublisher;
+    private final ContinuousAlertTransmitter continuousAlertTransmitter;
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
     private final Long MAX_DISTANCE = 50L;
 
@@ -60,7 +61,7 @@ public class EmergencyVehicleStatusService {
         VehicleStatus vehicleStatus = new VehicleStatus(sessionId, vehicle, false, null, -1, -1, LocalDateTime.now(),
                 true);
         vehicleStatusRepository.save(vehicleStatus);
-
+        continuousAlertTransmitter.registerTransmitter(vehicleId, vehicle.getLicenceNumber());
         return vehicleStatus.getVehicleStatusId();
     }
 
@@ -78,15 +79,12 @@ public class EmergencyVehicleStatusService {
             return Optional.empty();
         }
 
+        continuousAlertTransmitter.broadcastLocation(vehicleId, updateDto.getLongitude(), updateDto.getLatitude());
+
         return findAndUpdateCurrentPathPoint(email, vehicleId,
                 updateDto.getEmergencyEventId(),
                 updateDto.getLongitude(),
                 updateDto.getLatitude());
-    }
-
-    private void logVehicleLocation(Long vehicleId, Point coordinate, LocalDateTime lastUpdateTime) {
-        VehicleLocationLog vehicleLocationLog = new VehicleLocationLog(vehicleId, coordinate, lastUpdateTime);
-        vehicleLocationLogRepository.save(vehicleLocationLog);
     }
 
     private Optional<String> findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long emergencyEventId,
@@ -154,6 +152,7 @@ public class EmergencyVehicleStatusService {
 
     public void deleteVehicleStatus(Long vehicleId) {
         vehicleStatusRepository.deleteByVehicleId(vehicleId);
+        continuousAlertTransmitter.removeTransmitter(vehicleId);
     }
 
     private EmergencyEvent findEmergencyEventById(Long emergencyPathId) {

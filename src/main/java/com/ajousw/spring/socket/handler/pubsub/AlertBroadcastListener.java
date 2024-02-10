@@ -17,10 +17,13 @@ public class AlertBroadcastListener implements MessageListener {
     private final ObjectMapper objectMapper;
     private final ApplicationContext applicationContext;
     private LocationSocketHandler locationSocketHandler = null;
+    private final ContinuousAlertTransmitter continuousAlertTransmitter;
 
-    public AlertBroadcastListener(ObjectMapper objectMapper, ApplicationContext applicationContext) {
+    public AlertBroadcastListener(ObjectMapper objectMapper, ApplicationContext applicationContext,
+                                  ContinuousAlertTransmitter continuousAlertTransmitter) {
         this.objectMapper = objectMapper;
         this.applicationContext = applicationContext;
+        this.continuousAlertTransmitter = continuousAlertTransmitter;
     }
 
     @Override
@@ -29,6 +32,7 @@ public class AlertBroadcastListener implements MessageListener {
             BroadcastDto broadcastDto = objectMapper.readValue(message.getBody(), BroadcastDto.class);
             getLocationSocketHandler().broadcastToTargetSession(broadcastDto.getTargetSession(),
                     broadcastDto.getData(), MessageType.ALERT);
+            continuousAlertTransmitter.addSessions(broadcastDto.getVehicleId(), broadcastDto.getTargetSession());
             log.info("broadcast alert message to {}", broadcastDto.getTargetSession());
         } catch (IOException e) {
             log.error("error while listening broadcast message");

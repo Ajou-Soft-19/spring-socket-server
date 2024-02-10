@@ -1,6 +1,5 @@
 package com.ajousw.spring.socket.handler.message.dto;
 
-import java.util.Set;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,12 +8,12 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class BroadcastDto {
+public class AlertUpdateDto {
 
-    Long vehicleId;
+    private String licenseNumber;
 
-    Set<String> targetSession;
+    private Double longitude;
 
-    Object data;
+    private Double latitude;
+
 }
-
