@@ -3,13 +3,13 @@ package com.ajousw.spring.domain.vehicle;
 import com.ajousw.spring.domain.member.repository.MemberJpaRepository;
 import com.ajousw.spring.domain.navigation.entity.NavigationPath;
 import com.ajousw.spring.domain.navigation.entity.PathPoint;
-import com.ajousw.spring.domain.navigation.entity.repository.NavigationPathRepository;
 import com.ajousw.spring.domain.util.CoordinateUtil;
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
-import com.ajousw.spring.domain.vehicle.entity.repository.VehicleLocationLogRepository;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleRepository;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleStatusRepository;
+import com.ajousw.spring.domain.vehicle.record.GPSRecorder;
+import com.ajousw.spring.domain.vehicle.record.LocationData;
 import com.ajousw.spring.domain.warn.entity.EmergencyEvent;
 import com.ajousw.spring.domain.warn.entity.repository.EmergencyEventRepository;
 import com.ajousw.spring.socket.handler.message.dto.CurrentPointUpdateDto;
@@ -35,8 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 public class EmergencyVehicleStatusService {
-    private final VehicleLocationLogRepository vehicleLocationLogRepository;
-    private final NavigationPathRepository navigationPathRepository;
     private final EmergencyEventRepository emergencyEventRepository;
     private final VehicleStatusRepository vehicleStatusRepository;
     private final VehicleRepository vehicleRepository;
@@ -44,6 +42,7 @@ public class EmergencyVehicleStatusService {
     private final RedisMessagePublisher redisMessagePublisher;
     private final ContinuousAlertTransmitter continuousAlertTransmitter;
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+    private final MapMatcher mapMatcher;
     private final Long MAX_DISTANCE = 50L;
 
     public String resetAndCreateVehicleStatus(String sessionId, String email, Long vehicleId) {
@@ -65,26 +64,36 @@ public class EmergencyVehicleStatusService {
         return vehicleStatus.getVehicleStatusId();
     }
 
-    public Optional<String> updateEmergencyVehicleStatus(String email, Long vehicleId,
-                                                         VehicleStatusUpdateDto updateDto) {
+    public LocationData updateEmergencyVehicleStatus(String email, Long vehicleId,
+                                                     VehicleStatusUpdateDto updateDto, GPSRecorder gpsRecorder) {
         VehicleStatus vehicleStatus = findVehicleStatusByVehicleId(vehicleId);
+        LocationData matchedLocation = getMatchedLocation(updateDto, gpsRecorder);
         Point currnetPoint = geometryFactory.createPoint(
-                new Coordinate(updateDto.getLongitude(), updateDto.getLatitude()));
-
+                new Coordinate(matchedLocation.getLongitude(), matchedLocation.getLatitude()));
+        
         vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), currnetPoint, updateDto.getMeterPerSec(),
                 updateDto.getDirection(), updateDto.getLocalDateTime());
 
         if (!updateDto.getIsUsingNavi() || !updateDto.getOnEmergencyEvent()
                 || updateDto.getEmergencyEventId() == null) {
-            return Optional.empty();
+            return matchedLocation;
         }
 
-        continuousAlertTransmitter.broadcastLocation(vehicleId, updateDto.getLongitude(), updateDto.getLatitude());
+        continuousAlertTransmitter.broadcastLocation(vehicleId, matchedLocation.getLongitude(),
+                matchedLocation.getLatitude());
 
-        return findAndUpdateCurrentPathPoint(email, vehicleId,
+        findAndUpdateCurrentPathPoint(email, vehicleId,
                 updateDto.getEmergencyEventId(),
-                updateDto.getLongitude(),
-                updateDto.getLatitude());
+                matchedLocation.getLongitude(),
+                matchedLocation.getLatitude());
+
+        return matchedLocation;
+    }
+
+    private LocationData getMatchedLocation(VehicleStatusUpdateDto updateDto, GPSRecorder gpsRecorder) {
+        LocationData originalLocation = new LocationData(updateDto.getLatitude(), updateDto.getLongitude(),
+                updateDto.getDirection(), updateDto.getLocalDateTime());
+        return mapMatcher.requestMapMatchAndRecord(gpsRecorder, originalLocation);
     }
 
     private Optional<String> findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long emergencyEventId,
@@ -165,18 +174,6 @@ public class EmergencyVehicleStatusService {
         }
 
         return emergencyEvent;
-    }
-
-    private EmergencyEvent findEmergencyEventByNaviPath(NavigationPath navigationPath) {
-        return emergencyEventRepository.findByNavigationPath(navigationPath)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No Such EmergencyEvent"));
-    }
-
-    private NavigationPath findNavigationPathById(Long naviPathId) {
-        return navigationPathRepository.findNavigationPathByNaviPathId(naviPathId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No Such NavigationPath"));
     }
 
     private VehicleStatus findVehicleStatusByVehicleId(Long vehicleId) {

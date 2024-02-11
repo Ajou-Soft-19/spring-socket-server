@@ -1,6 +1,8 @@
 package com.ajousw.spring.socket;
 
 import com.ajousw.spring.domain.vehicle.EmergencyVehicleStatusService;
+import com.ajousw.spring.domain.vehicle.record.GPSRecorder;
+import com.ajousw.spring.domain.vehicle.record.LocationData;
 import com.ajousw.spring.socket.exception.StatusNotInitialized;
 import com.ajousw.spring.socket.handler.message.RequestType;
 import com.ajousw.spring.socket.handler.message.SocketRequest;
@@ -57,6 +59,8 @@ public class EmergencySocketController {
         String vehicleStatusId = vehicleStatusService.resetAndCreateVehicleStatus(sessionId, email, vehicleId);
         attributes.put("vehicleId", vehicleId);
         attributes.put("vehicleStatusId", vehicleStatusId);
+        attributes.put("gpsRecorder", new GPSRecorder());
+
         return new SocketResponse(Map.of("vehicleStatusId", vehicleStatusId));
     }
 
@@ -67,10 +71,12 @@ public class EmergencySocketController {
 
         VehicleStatusUpdateDto updateDto = createUpdateDto(data);
         processEmergencyVehicle(data, updateDto);
+        GPSRecorder gpsRecorder = (GPSRecorder) attributes.get("gpsRecorder");
 
-        String message = vehicleStatusService.updateEmergencyVehicleStatus(email, vehicleId, updateDto)
-                .orElse("OK");
-        return new SocketResponse(Map.of("msg", message));
+        LocationData matchedLocation = vehicleStatusService.updateEmergencyVehicleStatus(email, vehicleId, updateDto,
+                gpsRecorder);
+
+        return new SocketResponse(Map.of("location", matchedLocation));
     }
 
     private VehicleStatusUpdateDto createUpdateDto(Map<String, Object> data) {
@@ -99,8 +105,7 @@ public class EmergencySocketController {
             return;
         }
         vehicleStatusService.deleteVehicleStatus(vehicleId);
-        attributes.remove("vehicleId");
-        attributes.remove("vehicleStatusId");
+        attributes.clear();
     }
 
     private void checkInitialized(Long vehicleId) {
