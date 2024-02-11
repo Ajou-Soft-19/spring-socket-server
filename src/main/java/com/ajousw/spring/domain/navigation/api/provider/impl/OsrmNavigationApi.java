@@ -65,11 +65,11 @@ public class OsrmNavigationApi implements NavigationApi {
                     .toEntity(String.class)
                     .block();
         } catch (WebClientResponseException e) {
-//            HttpStatusCode statusCode = e.getStatusCode();
-//            if (statusCode.isError()) {
-//                log.error("OSRM map match api {} error", e.getStatusCode(), e);
-//                throw new BadApiResponseException("API 서버에 오류가 발생했습니다.");
-//            }
+            HttpStatusCode statusCode = e.getStatusCode();
+            if (statusCode.isError()) {
+                //log.error("OSRM map match api {} error", e.getStatusCode(), e);
+                throw new BadApiResponseException("API 서버에 오류가 발생했습니다.");
+            }
         }
 
         return response;
@@ -100,8 +100,9 @@ public class OsrmNavigationApi implements NavigationApi {
         }
 
         String bearingsString = directions.stream()
-                .map(direction -> direction + ",20")
+                .map(direction -> Math.round(direction) + ",20")
                 .collect(Collectors.joining(";"));
+        bearingsString += ";".repeat(destinations.size());
 
         return String.format("%s&bearings=%s", formattedRequestUrl, bearingsString);
     }
@@ -112,8 +113,10 @@ public class OsrmNavigationApi implements NavigationApi {
         String timestampsString = timestamps.stream()
                 .map(Object::toString)
                 .collect(Collectors.joining(";"));
+
+        // TODO: 맵 매칭 bearing 테스트
         String bearingsString = bearings.stream()
-                .map(direction -> direction + ",20")
+                .map(direction -> Math.round(direction) + ",20")
                 .collect(Collectors.joining(";"));
 
         return String.format(requestUrl, coordinatesString, timestampsString);

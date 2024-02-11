@@ -81,7 +81,8 @@ public class EmergencyVehicleStatusService {
         pathUpdater.findAndUpdateCurrentPathPoint(sessionId, vehicleId,
                 updateDto.getEmergencyEventId(),
                 matchedLocation.getLongitude(),
-                matchedLocation.getLatitude());
+                matchedLocation.getLatitude(),
+                updateDto.getDirection());
     }
 
     private LocationData getMatchedLocation(VehicleStatusUpdateDto updateDto, GPSRecorder gpsRecorder) {
