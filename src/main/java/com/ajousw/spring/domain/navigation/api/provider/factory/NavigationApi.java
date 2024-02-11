@@ -1,4 +1,4 @@
-package com.ajousw.spring.domain.navigation.api.provider;
+package com.ajousw.spring.domain.navigation.api.provider.factory;
 
 import java.util.Map;
 import org.springframework.http.ResponseEntity;

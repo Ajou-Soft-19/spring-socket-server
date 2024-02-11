@@ -1,9 +1,9 @@
-package com.ajousw.spring.domain.vehicle;
+package com.ajousw.spring.domain.navigation.api;
 
 import com.ajousw.spring.domain.navigation.api.info.table.Coordinate;
 import com.ajousw.spring.domain.navigation.api.info.table.MapMatchApiResponse;
 import com.ajousw.spring.domain.navigation.api.provider.NavigationProvider;
-import com.ajousw.spring.domain.navigation.api.provider.Provider;
+import com.ajousw.spring.domain.navigation.api.provider.factory.Provider;
 import com.ajousw.spring.domain.vehicle.record.GPSRecorder;
 import com.ajousw.spring.domain.vehicle.record.LocationData;
 import java.time.ZoneOffset;
@@ -23,30 +23,32 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MapMatcher {
     private final NavigationProvider navigationProvider;
+    private final int minRecordSize = 4;
 
     /**
      * 맵 매칭을 통해 좌표를 수정하고, GPSRecorder에 위치 정보를 저장
      */
     public LocationData requestMapMatchAndRecord(GPSRecorder gpsRecorder, LocationData currentLocation) {
-        if (gpsRecorder.currentSize() < 4) {
+        if (gpsRecorder.currentSize() < minRecordSize) {
             addCurrentLocationToRecorder(gpsRecorder, currentLocation);
             return currentLocation;
         }
 
-        LocationData location = null;
+        LocationData mapMatchedLocation = null;
         try {
             Map<String, Object> params = setParams(gpsRecorder, currentLocation);
             MapMatchApiResponse queryResult = navigationProvider.getMapMatchQueryResult(Provider.OSRM, params);
-            log.info("confidence {}", queryResult.getConfidence());
-            location = returnMapMatchedLocation(queryResult, currentLocation);
+            // log.info("<{}> confidence {}", gpsRecorder.getSessionId().substring(0, 13), queryResult.getConfidence());
+            mapMatchedLocation = returnMapMatchedLocation(queryResult, currentLocation);
         } catch (Exception e) {
-            log.error("error", e);
-            location = currentLocation;
+            log.info("<{}> No Match result", gpsRecorder.getSessionId().substring(0, 13));
+            gpsRecorder.clear();
+            mapMatchedLocation = currentLocation;
         } finally {
-            addCurrentLocationToRecorder(gpsRecorder, location);
+            addCurrentLocationToRecorder(gpsRecorder, mapMatchedLocation);
         }
 
-        return location;
+        return mapMatchedLocation;
     }
 
     private void addCurrentLocationToRecorder(GPSRecorder gpsRecorder, LocationData currentLocation) {
@@ -63,7 +65,7 @@ public class MapMatcher {
     }
 
     private Map<String, Object> setParams(GPSRecorder gpsRecorder, LocationData currentLocation) {
-        Queue<LocationData> locations = gpsRecorder.getLocations();
+        Queue<LocationData> locations = gpsRecorder.getLocationQueue();
         List<String> coordinates = new ArrayList<>();
         List<Long> timestamps = new ArrayList<>();
         List<Double> bearings = new ArrayList<>();

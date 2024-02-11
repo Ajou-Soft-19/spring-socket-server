@@ -20,8 +20,6 @@ public class CurrentPointUpdateDto {
 
     private Long emergencyEventId;
 
-    private String email;
-
     private Double currentLongitude;
 
     private Double currentLatitude;

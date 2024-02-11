@@ -1,6 +1,8 @@
-package com.ajousw.spring.socket;
+package com.ajousw.spring.socket.handler.service;
 
 import com.ajousw.spring.domain.vehicle.VehicleStatusService;
+import com.ajousw.spring.domain.vehicle.record.GPSRecorder;
+import com.ajousw.spring.domain.vehicle.record.LocationData;
 import com.ajousw.spring.socket.exception.StatusNotInitialized;
 import com.ajousw.spring.socket.handler.message.RequestType;
 import com.ajousw.spring.socket.handler.message.SocketRequest;
@@ -16,28 +18,24 @@ import org.springframework.web.socket.WebSocketSession;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class MemberSocketController {
+public class LocationSocketService {
     private final VehicleStatusService vehicleStatusService;
     private final SocketMessageConverter messageConverter;
 
     public SocketResponse handleSocketRequest(SocketRequest socketRequest, WebSocketSession webSocketSession) {
         RequestType requestType = socketRequest.getRequestType();
+        String sessionId = webSocketSession.getId();
         if (requestType == RequestType.INIT) {
             log.info("<{}> request type [{}]", webSocketSession.getId(), requestType);
         }
         Map<String, Object> attributes = webSocketSession.getAttributes();
+        Map<String, Object> requestData = socketRequest.getData();
 
-        return handleRequest(socketRequest, requestType, attributes, webSocketSession.getId());
-    }
-
-    private SocketResponse handleRequest(SocketRequest socketRequest, RequestType requestType,
-                                         Map<String, Object> attributes, String sessionId) {
         SocketResponse socketResponse = null;
-        Map<String, Object> data = socketRequest.getData();
         try {
             switch (requestType) {
-                case INIT -> socketResponse = init(data, attributes, sessionId);
-                case UPDATE -> socketResponse = update(data, attributes);
+                case INIT -> socketResponse = handleInit(requestData, attributes, sessionId);
+                case UPDATE -> socketResponse = handleUpdate(requestData, attributes, sessionId);
                 default -> throw new IllegalArgumentException("No matching request type");
             }
         } catch (IllegalArgumentException | StatusNotInitialized e) {
@@ -45,43 +43,45 @@ public class MemberSocketController {
         } catch (NullPointerException e) {
             return new SocketResponse(420, Map.of("errMsg", "잘못된 요청입니다."));
         } catch (Exception e) {
-            log.error("", e);
+            log.error("<{}>", sessionId.substring(0, 13), e);
             return new SocketResponse(500, Map.of("errMsg", "Error While Handling Request"));
         }
 
         return socketResponse;
     }
 
-    private SocketResponse init(Map<String, Object> data, Map<String, Object> attributes,
-                                String sessionId) {
+    private SocketResponse handleInit(Map<String, Object> requestData, Map<String, Object> attributes,
+                                      String sessionId) {
         String vehicleStatusId = vehicleStatusService.createVehicleStatus(sessionId);
         attributes.put("vehicleStatusId", vehicleStatusId);
+        attributes.put("gpsRecorder", new GPSRecorder(sessionId));
         return new SocketResponse(Map.of("vehicleStatusId", vehicleStatusId));
     }
 
-    private SocketResponse update(Map<String, Object> data, Map<String, Object> attributes) {
+    private SocketResponse handleUpdate(Map<String, Object> data, Map<String, Object> attributes, String sessionId) {
         String vehicleStatusId = (String) attributes.get("vehicleStatusId");
         checkInitialized(vehicleStatusId);
 
         VehicleStatusUpdateDto updateDto = createUpdateDto(data);
-        vehicleStatusService.updateVehicleStatus(vehicleStatusId, updateDto);
+        GPSRecorder gpsRecorder = (GPSRecorder) attributes.get("gpsRecorder");
+        LocationData matchedLocation = vehicleStatusService.updateVehicleStatus(vehicleStatusId, updateDto,
+                gpsRecorder);
 
-        return new SocketResponse(Map.of("msg", "OK"));
+        return new SocketResponse(Map.of("location", matchedLocation));
     }
 
-    private VehicleStatusUpdateDto createUpdateDto(Map<String, Object> data) {
+    private VehicleStatusUpdateDto createUpdateDto(Map<String, Object> requestData) {
         VehicleStatusUpdateDto updateDto = new VehicleStatusUpdateDto();
-        updateDto.setIsUsingNavi(messageConverter.getSafeValueFromMap(data, "isUsingNavi", Boolean.class));
-        updateDto.setLongitude(messageConverter.getSafeValueFromMap(data, "longitude", Double.class));
-        updateDto.setLatitude(messageConverter.getSafeValueFromMap(data, "latitude", Double.class));
-        updateDto.setMeterPerSec(messageConverter.getSafeValueFromMap(data, "meterPerSec", Double.class));
-        updateDto.setDirection(messageConverter.getSafeValueFromMap(data, "direction", Double.class));
+        updateDto.setIsUsingNavi(messageConverter.getSafeValueFromMap(requestData, "isUsingNavi", Boolean.class));
+        updateDto.setLongitude(messageConverter.getSafeValueFromMap(requestData, "longitude", Double.class));
+        updateDto.setLatitude(messageConverter.getSafeValueFromMap(requestData, "latitude", Double.class));
+        updateDto.setMeterPerSec(messageConverter.getSafeValueFromMap(requestData, "meterPerSec", Double.class));
+        updateDto.setDirection(messageConverter.getSafeValueFromMap(requestData, "direction", Double.class));
         updateDto.setLocalDateTime(messageConverter.parseToLocalDateTime(
-                messageConverter.getSafeValueFromMap(data, "timestamp", String.class)));
+                messageConverter.getSafeValueFromMap(requestData, "timestamp", String.class)));
         return updateDto;
     }
 
-    // TODO: NULL 터짐
     public void deleteStatus(Map<String, Object> attributes) {
         String vehicleStatusId = (String) attributes.get("vehicleStatusId");
         if (vehicleStatusId == null) {

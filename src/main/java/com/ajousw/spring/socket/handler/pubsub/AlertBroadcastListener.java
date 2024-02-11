@@ -3,6 +3,7 @@ package com.ajousw.spring.socket.handler.pubsub;
 import com.ajousw.spring.socket.handler.LocationSocketHandler;
 import com.ajousw.spring.socket.handler.message.MessageType;
 import com.ajousw.spring.socket.handler.message.dto.BroadcastDto;
+import com.ajousw.spring.socket.handler.service.ContinuousAlertTransmitter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;

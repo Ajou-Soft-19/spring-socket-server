@@ -2,6 +2,9 @@ package com.ajousw.spring.domain.navigation.api.provider;
 
 import com.ajousw.spring.domain.navigation.api.info.table.MapMatchApiResponse;
 import com.ajousw.spring.domain.navigation.api.info.table.TableApiResponse;
+import com.ajousw.spring.domain.navigation.api.provider.factory.NavigationApi;
+import com.ajousw.spring.domain.navigation.api.provider.factory.NavigationApiFactory;
+import com.ajousw.spring.domain.navigation.api.provider.factory.Provider;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;

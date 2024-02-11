@@ -1,4 +1,4 @@
-package com.ajousw.spring.domain.navigation.api.provider;
+package com.ajousw.spring.domain.navigation.api.provider.factory;
 
 
 import com.ajousw.spring.domain.navigation.api.info.SafeNumberParser;

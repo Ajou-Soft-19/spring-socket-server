@@ -1,25 +1,18 @@
 package com.ajousw.spring.domain.vehicle;
 
 import com.ajousw.spring.domain.member.repository.MemberJpaRepository;
-import com.ajousw.spring.domain.navigation.entity.NavigationPath;
-import com.ajousw.spring.domain.navigation.entity.PathPoint;
-import com.ajousw.spring.domain.util.CoordinateUtil;
+import com.ajousw.spring.domain.navigation.NavigationPathUpdater;
+import com.ajousw.spring.domain.navigation.api.MapMatcher;
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleRepository;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleStatusRepository;
 import com.ajousw.spring.domain.vehicle.record.GPSRecorder;
 import com.ajousw.spring.domain.vehicle.record.LocationData;
-import com.ajousw.spring.domain.warn.entity.EmergencyEvent;
-import com.ajousw.spring.domain.warn.entity.repository.EmergencyEventRepository;
-import com.ajousw.spring.socket.handler.message.dto.CurrentPointUpdateDto;
 import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
-import com.ajousw.spring.socket.handler.pubsub.ContinuousAlertTransmitter;
-import com.ajousw.spring.socket.handler.pubsub.RedisMessagePublisher;
+import com.ajousw.spring.socket.handler.service.ContinuousAlertTransmitter;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
@@ -35,59 +28,60 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 public class EmergencyVehicleStatusService {
-    private final EmergencyEventRepository emergencyEventRepository;
+
     private final VehicleStatusRepository vehicleStatusRepository;
     private final VehicleRepository vehicleRepository;
     private final MemberJpaRepository memberRepository;
-    private final RedisMessagePublisher redisMessagePublisher;
+    private final NavigationPathUpdater pathUpdater;
     private final ContinuousAlertTransmitter continuousAlertTransmitter;
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
     private final MapMatcher mapMatcher;
-    private final Long MAX_DISTANCE = 50L;
+
 
     public String resetAndCreateVehicleStatus(String sessionId, String email, Long vehicleId) {
         Long memberId = findMemberIdByEmail(email);
         Vehicle vehicle = findVehicleById(vehicleId);
+        checkVehicleOwner(memberId, vehicle);
+        checkSessionAlreadyExist(vehicle);
 
-        if (!Objects.equals(memberId, vehicle.getMember().getId())) {
-            throw new IllegalArgumentException("본인이 소유한 차량이 아닙니다.");
-        }
-
-        if (vehicleStatusRepository.existsByVehicle(vehicle)) {
-            throw new IllegalArgumentException("Session Already Exist");
-        }
-
-        VehicleStatus vehicleStatus = new VehicleStatus(sessionId, vehicle, false, null, -1, -1, LocalDateTime.now(),
-                true);
+        VehicleStatus vehicleStatus = new VehicleStatus(sessionId, vehicle, false,
+                null, -1, -1, LocalDateTime.now(), true);
         vehicleStatusRepository.save(vehicleStatus);
         continuousAlertTransmitter.registerTransmitter(vehicleId, vehicle.getLicenceNumber());
+
         return vehicleStatus.getVehicleStatusId();
     }
 
-    public LocationData updateEmergencyVehicleStatus(String email, Long vehicleId,
-                                                     VehicleStatusUpdateDto updateDto, GPSRecorder gpsRecorder) {
+    public LocationData updateEmergencyVehicleStatus(String sessionId, Long vehicleId, VehicleStatusUpdateDto updateDto,
+                                                     GPSRecorder gpsRecorder) {
         VehicleStatus vehicleStatus = findVehicleStatusByVehicleId(vehicleId);
+
         LocationData matchedLocation = getMatchedLocation(updateDto, gpsRecorder);
-        Point currnetPoint = geometryFactory.createPoint(
+        Point matchedPoint = geometryFactory.createPoint(
                 new Coordinate(matchedLocation.getLongitude(), matchedLocation.getLatitude()));
-        
-        vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), currnetPoint, updateDto.getMeterPerSec(),
+        vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), matchedPoint, updateDto.getMeterPerSec(),
                 updateDto.getDirection(), updateDto.getLocalDateTime());
 
-        if (!updateDto.getIsUsingNavi() || !updateDto.getOnEmergencyEvent()
-                || updateDto.getEmergencyEventId() == null) {
-            return matchedLocation;
+        if (onEmergencyEvent(updateDto)) {
+            continuousAlertTransmitter.broadcastLocation(vehicleId, matchedLocation.getLongitude(),
+                    matchedLocation.getLatitude());
+            updateCurrentPathPointAndCheckPoint(sessionId, vehicleId, updateDto, matchedLocation);
         }
 
-        continuousAlertTransmitter.broadcastLocation(vehicleId, matchedLocation.getLongitude(),
-                matchedLocation.getLatitude());
+        return matchedLocation;
+    }
 
-        findAndUpdateCurrentPathPoint(email, vehicleId,
+    private boolean onEmergencyEvent(VehicleStatusUpdateDto updateDto) {
+        return updateDto.getIsUsingNavi() && updateDto.getOnEmergencyEvent()
+                && updateDto.getEmergencyEventId() != null;
+    }
+
+    private void updateCurrentPathPointAndCheckPoint(String sessionId, Long vehicleId, VehicleStatusUpdateDto updateDto,
+                                                     LocationData matchedLocation) {
+        pathUpdater.findAndUpdateCurrentPathPoint(sessionId, vehicleId,
                 updateDto.getEmergencyEventId(),
                 matchedLocation.getLongitude(),
                 matchedLocation.getLatitude());
-
-        return matchedLocation;
     }
 
     private LocationData getMatchedLocation(VehicleStatusUpdateDto updateDto, GPSRecorder gpsRecorder) {
@@ -96,84 +90,21 @@ public class EmergencyVehicleStatusService {
         return mapMatcher.requestMapMatchAndRecord(gpsRecorder, originalLocation);
     }
 
-    private Optional<String> findAndUpdateCurrentPathPoint(String email, Long vehicleId, Long emergencyEventId,
-                                                           double longitude, double latitude) {
-        EmergencyEvent emergencyEvent = findEmergencyEventById(emergencyEventId);
-        NavigationPath navigationPath = emergencyEvent.getNavigationPath();
-
-        if (!Objects.equals(emergencyEvent.getVehicle().getVehicleId(), vehicleId)) {
-            throw new IllegalArgumentException("Not Correct EmergencyEvent, VehicleId Pair");
-        }
-
-        List<PathPoint> pathPoints = navigationPath.getPathPoints();
-
-        Optional<PathPoint> closestPathPoint = findClosestPathPoint(pathPoints, longitude, latitude,
-                navigationPath.getCurrentPathPoint());
-
-        CurrentPointUpdateDto currentPointUpdateDto;
-        if (closestPathPoint.isEmpty()) {
-            currentPointUpdateDto = new CurrentPointUpdateDto(navigationPath.getNaviPathId(),
-                    navigationPath.getCurrentPathPoint(),
-                    emergencyEventId, email, longitude, latitude);
-            redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
-            return Optional.empty();
-        }
-
-        log.info("update idx from {}, to {}", navigationPath.getCurrentPathPoint(),
-                closestPathPoint.get().getPointIndex());
-
-        currentPointUpdateDto = new CurrentPointUpdateDto(navigationPath.getNaviPathId(),
-                closestPathPoint.get().getPointIndex(), emergencyEventId, email, longitude, latitude);
-        redisMessagePublisher.publicPointUpdateMessageToSocket(currentPointUpdateDto);
-        return Optional.of(String.format("Passed pathPoint %d", closestPathPoint.get().getPointIndex()));
-    }
-
-    private Optional<PathPoint> findClosestPathPoint(List<PathPoint> pathPoints, double longitude, double latitude,
-                                                     Long currentPathPointIndex) {
-        PathPoint closestPoint = null;
-        double closestDistance = Double.MAX_VALUE;
-
-        if (pathPoints.size() <= 1) {
-            return Optional.empty();
-        }
-
-        for (PathPoint point : pathPoints) {
-            double distance = CoordinateUtil.calculateDistance(latitude, longitude, point.getCoordinate().getY(),
-                    point.getCoordinate().getX());
-
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestPoint = point;
-            }
-        }
-
-        if (closestPoint == null || closestPoint.getPointIndex() <= currentPathPointIndex) {
-            return Optional.empty();
-        }
-
-        // TODO: path point 확인 정확도 향상 로직 구현
-        if (closestDistance > MAX_DISTANCE) {
-            return Optional.empty();
-        }
-
-        return Optional.of(closestPoint);
-    }
-
     public void deleteVehicleStatus(Long vehicleId) {
         vehicleStatusRepository.deleteByVehicleId(vehicleId);
         continuousAlertTransmitter.removeTransmitter(vehicleId);
     }
 
-    private EmergencyEvent findEmergencyEventById(Long emergencyPathId) {
-        EmergencyEvent emergencyEvent = emergencyEventRepository.findById(emergencyPathId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No Such EmergencyEvent"));
-
-        if (!emergencyEvent.getIsActive()) {
-            throw new IllegalStateException("EmergencyEvent Already Ended");
+    private void checkSessionAlreadyExist(Vehicle vehicle) {
+        if (vehicleStatusRepository.existsByVehicle(vehicle)) {
+            throw new IllegalArgumentException("Session Already Exist");
         }
+    }
 
-        return emergencyEvent;
+    private void checkVehicleOwner(Long memberId, Vehicle vehicle) {
+        if (!Objects.equals(memberId, vehicle.getMember().getId())) {
+            throw new IllegalArgumentException("본인이 소유한 차량이 아닙니다.");
+        }
     }
 
     private VehicleStatus findVehicleStatusByVehicleId(Long vehicleId) {

@@ -1,10 +1,10 @@
 package com.ajousw.spring.socket.handler;
 
-import com.ajousw.spring.socket.MemberSocketController;
 import com.ajousw.spring.socket.handler.message.MessageType;
 import com.ajousw.spring.socket.handler.message.SocketRequest;
 import com.ajousw.spring.socket.handler.message.SocketResponse;
 import com.ajousw.spring.socket.handler.message.convert.SocketMessageConverter;
+import com.ajousw.spring.socket.handler.service.LocationSocketService;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -23,7 +23,7 @@ import org.springframework.web.socket.WebSocketSession;
 @RequiredArgsConstructor
 public class LocationSocketHandler implements WebSocketHandler {
 
-    private final MemberSocketController memberSocketController;
+    private final LocationSocketService socketService;
     private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
     private final SocketMessageConverter socketMessageConverter;
 
@@ -48,9 +48,9 @@ public class LocationSocketHandler implements WebSocketHandler {
         }
 
         long startTime = System.currentTimeMillis();
-        SocketResponse socketResponse = memberSocketController.handleSocketRequest(socketRequest, session);
+        SocketResponse socketResponse = socketService.handleSocketRequest(socketRequest, session);
         long endTime = System.currentTimeMillis();
-        //log.info("<{}> Response Time = {}ms", session.getId(), endTime - startTime);
+        //log.info("<{}> Response Time = {}ms", session.getId().substring(0, 13), endTime - startTime);
         if (!session.isOpen()) {
             log.info("Session Closed while sending data: " + session.getId());
             return;
@@ -79,14 +79,14 @@ public class LocationSocketHandler implements WebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
         log.info("Error occurred at sender " + session);
-        memberSocketController.deleteStatus(session.getAttributes());
+        socketService.deleteStatus(session.getAttributes());
         sessions.remove(session);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
         log.info("Session " + session.getId() + " closed with status: " + closeStatus.getReason());
-        memberSocketController.deleteStatus(session.getAttributes());
+        socketService.deleteStatus(session.getAttributes());
         sessions.remove(session);
     }
 

@@ -1,4 +1,4 @@
-package com.ajousw.spring.socket.handler.pubsub;
+package com.ajousw.spring.socket.handler.service;
 
 import com.ajousw.spring.socket.handler.LocationSocketHandler;
 import com.ajousw.spring.socket.handler.message.MessageType;
@@ -82,16 +82,16 @@ public class ContinuousAlertTransmitter {
         locationSocketHandler.broadcastToTargetSession(removedSessionId, alertEndDto, MessageType.ALERT_END);
     }
 
-    private void broadcastTargetSession(Map<String, SessionNotificationCounter> sessionNotificationCounterMap,
-                                        Object object, MessageType messageType) {
-        Set<String> targetSessionIds = sessionNotificationCounterMap.keySet();
-        locationSocketHandler.broadcastToTargetSession(targetSessionIds, object, messageType);
-    }
-
     private void sendAlertEndMessage(Map<String, SessionNotificationCounter> sessionNotificationCounterMap,
                                      String licenseNumber) {
         AlertEndDto alertEndDto = new AlertEndDto(licenseNumber);
         broadcastTargetSession(sessionNotificationCounterMap, alertEndDto, MessageType.ALERT_END);
+    }
+
+    private void broadcastTargetSession(Map<String, SessionNotificationCounter> sessionNotificationCounterMap,
+                                        Object object, MessageType messageType) {
+        Set<String> targetSessionIds = sessionNotificationCounterMap.keySet();
+        locationSocketHandler.broadcastToTargetSession(targetSessionIds, object, messageType);
     }
 
     private SessionNotificationCounter addOrResetSessionCount(String session, SessionNotificationCounter v) {

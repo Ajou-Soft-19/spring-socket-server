@@ -1,7 +1,10 @@
 package com.ajousw.spring.domain.vehicle;
 
+import com.ajousw.spring.domain.navigation.api.MapMatcher;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
 import com.ajousw.spring.domain.vehicle.entity.repository.VehicleStatusRepository;
+import com.ajousw.spring.domain.vehicle.record.GPSRecorder;
+import com.ajousw.spring.domain.vehicle.record.LocationData;
 import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class VehicleStatusService {
     private final VehicleStatusRepository vehicleStatusRepository;
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+    private final MapMatcher mapMatcher;
 
     public String createVehicleStatus(String sessionId) {
         VehicleStatus vehicleStatus = new VehicleStatus(sessionId, null, false, null, -1, -1,
@@ -30,13 +34,22 @@ public class VehicleStatusService {
         return vehicleStatus.getVehicleStatusId();
     }
 
-    public void updateVehicleStatus(String vehicleStatusId, VehicleStatusUpdateDto updateDto) {
+    public LocationData updateVehicleStatus(String vehicleStatusId, VehicleStatusUpdateDto updateDto,
+                                            GPSRecorder gpsRecorder) {
         VehicleStatus vehicleStatus = findVehicleStatusByVehicleStatusId(vehicleStatusId);
-        Point coordinate = geometryFactory.createPoint(
-                new Coordinate(updateDto.getLongitude(), updateDto.getLatitude()));
-
-        vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), coordinate, updateDto.getMeterPerSec(),
+        LocationData matchedLocation = getMatchedLocation(updateDto, gpsRecorder);
+        Point matchedPoint = geometryFactory.createPoint(
+                new Coordinate(matchedLocation.getLongitude(), matchedLocation.getLatitude()));
+        vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), matchedPoint, updateDto.getMeterPerSec(),
                 updateDto.getDirection(), updateDto.getLocalDateTime());
+
+        return matchedLocation;
+    }
+
+    private LocationData getMatchedLocation(VehicleStatusUpdateDto updateDto, GPSRecorder gpsRecorder) {
+        LocationData originalLocation = new LocationData(updateDto.getLatitude(), updateDto.getLongitude(),
+                updateDto.getDirection(), updateDto.getLocalDateTime());
+        return mapMatcher.requestMapMatchAndRecord(gpsRecorder, originalLocation);
     }
 
 

@@ -11,16 +11,18 @@ import lombok.Getter;
  */
 @Getter
 public class GPSRecorder {
+    private final String sessionId;
     private LocationData lastLocation;
-    private final Queue<LocationData> locations = new LinkedList<>();
-    private final double distanceInterval = 10;
-    private final int maxSize = 10;
-    private final long timeInterval = 30 * 1000;
+    private final Queue<LocationData> locationQueue = new LinkedList<>();
+
+    public GPSRecorder(String sessionId) {
+        this.sessionId = sessionId;
+    }
 
     public void record(LocationData location) {
         if (lastLocation == null) {
             lastLocation = location;
-            locations.add(location);
+            locationQueue.add(location);
             return;
         }
 
@@ -30,16 +32,21 @@ public class GPSRecorder {
 
         long timeDifference = ChronoUnit.SECONDS.between(lastLocation.getTimestamp(), location.getTimestamp());
 
-        if (distance >= distanceInterval || timeDifference >= timeInterval) {
-            if (locations.size() == maxSize) {
-                locations.poll();
+        if (distance >= RecordStatics.DISTANCE_INTERVAL || timeDifference >= RecordStatics.TIME_INTERVAL) {
+            if (locationQueue.size() == RecordStatics.MAX_SIZE) {
+                locationQueue.poll();
             }
             lastLocation = location;
-            locations.add(location);
+            locationQueue.add(location);
         }
     }
 
+    public void clear() {
+        lastLocation = null;
+        locationQueue.clear();
+    }
+
     public int currentSize() {
-        return locations.size();
+        return locationQueue.size();
     }
 }
