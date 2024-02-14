@@ -7,7 +7,7 @@ import java.util.Queue;
 import lombok.Getter;
 
 /**
- * 20m 이상 위치가 차이나거나, timeInterval이 30초 이상이면 GPS 기록을 저장
+ * 10m 이상 위치가 차이나거나, timeInterval이 30초 이상이면 GPS 기록을 저장
  */
 @Getter
 public class GPSRecorder {

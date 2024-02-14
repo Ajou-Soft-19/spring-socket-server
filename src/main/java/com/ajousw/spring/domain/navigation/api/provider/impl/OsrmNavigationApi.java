@@ -68,7 +68,7 @@ public class OsrmNavigationApi implements NavigationApi {
             HttpStatusCode statusCode = e.getStatusCode();
             if (statusCode.isError()) {
                 //log.error("OSRM map match api {} error", e.getStatusCode(), e);
-                throw new BadApiResponseException("API 서버에 오류가 발생했습니다.");
+                throw new BadApiResponseException(e.getMessage());
             }
         }
 

@@ -38,10 +38,11 @@ public class MapMatcher {
         try {
             Map<String, Object> params = setParams(gpsRecorder, currentLocation);
             MapMatchApiResponse queryResult = navigationProvider.getMapMatchQueryResult(Provider.OSRM, params);
-            // log.info("<{}> confidence {}", gpsRecorder.getSessionId().substring(0, 13), queryResult.getConfidence());
+            logMapMatchedResult(gpsRecorder, queryResult);
             mapMatchedLocation = returnMapMatchedLocation(queryResult, currentLocation);
         } catch (Exception e) {
             log.info("<{}> No Match result", gpsRecorder.getSessionId().substring(0, 13));
+            log.info("<{}> cause {}", gpsRecorder.getSessionId().substring(0, 13), e.getMessage());
             gpsRecorder.clear();
             mapMatchedLocation = currentLocation;
         } finally {
@@ -49,6 +50,12 @@ public class MapMatcher {
         }
 
         return mapMatchedLocation;
+    }
+
+    private void logMapMatchedResult(GPSRecorder gpsRecorder, MapMatchApiResponse queryResult) {
+        log.info("<{}> confidence {} lat: {} lon: {}", gpsRecorder.getSessionId().substring(0, 13),
+                queryResult.getConfidence(), queryResult.getLastCoordinate().getLatitude(),
+                queryResult.getLastCoordinate().getLongitude());
     }
 
     private void addCurrentLocationToRecorder(GPSRecorder gpsRecorder, LocationData currentLocation) {
@@ -60,8 +67,10 @@ public class MapMatcher {
         double lon = lastCoordinate.getLongitude();
         double lat = lastCoordinate.getLatitude();
         String locationName = queryResult.getCurrentLocationName();
+        double confidence = queryResult.getConfidence();
 
-        return new LocationData(lat, lon, currentLocation.getDirection(), currentLocation.getTimestamp(), locationName);
+        return new LocationData(lat, lon, currentLocation.getDirection(), currentLocation.getTimestamp(), locationName,
+                confidence);
     }
 
     private Map<String, Object> setParams(GPSRecorder gpsRecorder, LocationData currentLocation) {
