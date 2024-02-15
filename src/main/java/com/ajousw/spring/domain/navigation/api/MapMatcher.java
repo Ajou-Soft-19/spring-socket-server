@@ -6,6 +6,7 @@ import com.ajousw.spring.domain.navigation.api.provider.NavigationProvider;
 import com.ajousw.spring.domain.navigation.api.provider.factory.Provider;
 import com.ajousw.spring.domain.vehicle.record.GPSRecorder;
 import com.ajousw.spring.domain.vehicle.record.LocationData;
+import com.ajousw.spring.domain.vehicle.record.RecordStatics;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,7 +29,9 @@ public class MapMatcher {
     /**
      * 맵 매칭을 통해 좌표를 수정하고, GPSRecorder에 위치 정보를 저장
      */
+    // TODO: 통신 오류와 맵매칭 실패 구분하여 처리
     public LocationData requestMapMatchAndRecord(GPSRecorder gpsRecorder, LocationData currentLocation) {
+        log.info("Queue size : {}, Error count : {}", gpsRecorder.currentSize(), gpsRecorder.getFailCount());
         if (gpsRecorder.currentSize() < minRecordSize) {
             addCurrentLocationToRecorder(gpsRecorder, currentLocation);
             return currentLocation;
@@ -39,17 +42,26 @@ public class MapMatcher {
             Map<String, Object> params = setParams(gpsRecorder, currentLocation);
             MapMatchApiResponse queryResult = navigationProvider.getMapMatchQueryResult(Provider.OSRM, params);
             logMapMatchedResult(gpsRecorder, queryResult);
+            gpsRecorder.resetFailCount();
             mapMatchedLocation = returnMapMatchedLocation(queryResult, currentLocation);
         } catch (Exception e) {
-            log.info("<{}> No Match result", gpsRecorder.getSessionId().substring(0, 13));
-            log.info("<{}> cause {}", gpsRecorder.getSessionId().substring(0, 13), e.getMessage());
-            gpsRecorder.clear();
+            handleMapMatchError(gpsRecorder, e);
             mapMatchedLocation = currentLocation;
         } finally {
             addCurrentLocationToRecorder(gpsRecorder, mapMatchedLocation);
         }
 
         return mapMatchedLocation;
+    }
+
+    private void handleMapMatchError(GPSRecorder gpsRecorder, Exception e) {
+        log.info("<{}> No Match result", gpsRecorder.getSessionId().substring(0, 13));
+        log.info("<{}> cause {}", gpsRecorder.getSessionId().substring(0, 13), e.getMessage());
+        gpsRecorder.addFailCount();
+        if (gpsRecorder.currentSize() > RecordStatics.MAX_SIZE / 2
+                && gpsRecorder.getFailCount() > RecordStatics.MAX_ERROR_COUNT) {
+            gpsRecorder.clear();
+        }
     }
 
     private void logMapMatchedResult(GPSRecorder gpsRecorder, MapMatchApiResponse queryResult) {

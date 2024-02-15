@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true, noRollbackFor = BadApiResponseException.class)
 public class NavigationPathUpdater {
 
     private final EmergencyEventRepository emergencyEventRepository;
@@ -34,6 +33,7 @@ public class NavigationPathUpdater {
     private final Long MAX_DISTANCE = 50L;
 
     @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = BadApiResponseException.class)
     public void findAndUpdateCurrentPathPoint(String sessionId, Long vehicleId, Long emergencyEventId,
                                               double longitude, double latitude, double direction) {
         EmergencyEvent emergencyEvent = findEmergencyEventById(emergencyEventId);
