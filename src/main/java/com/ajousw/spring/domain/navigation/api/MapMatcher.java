@@ -36,21 +36,21 @@ public class MapMatcher {
             return currentLocation;
         }
 
-//        LocationData mapMatchedLocation = null;
+        LocationData mapMatchedLocation = null;
         try {
             Map<String, Object> params = setParams(gpsRecorder, currentLocation);
             MapMatchApiResponse queryResult = navigationProvider.getMapMatchQueryResult(Provider.OSRM, params);
             logMapMatchedResult(gpsRecorder, queryResult);
             gpsRecorder.resetFailCount();
-//            mapMatchedLocation = returnMapMatchedLocation(queryResult, currentLocation);
+            mapMatchedLocation = returnMapMatchedLocation(queryResult, currentLocation);
         } catch (Exception e) {
             handleMapMatchError(gpsRecorder, e);
-//            mapMatchedLocation = currentLocation;
+            mapMatchedLocation = currentLocation;
         } finally {
             addCurrentLocationToRecorder(gpsRecorder, currentLocation);
         }
 
-        return currentLocation;
+        return mapMatchedLocation;
     }
 
     private void handleMapMatchError(GPSRecorder gpsRecorder, Exception e) {
