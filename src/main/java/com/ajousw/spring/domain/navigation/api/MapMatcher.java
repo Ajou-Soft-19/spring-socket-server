@@ -29,9 +29,8 @@ public class MapMatcher {
     /**
      * 맵 매칭을 통해 좌표를 수정하고, GPSRecorder에 위치 정보를 저장
      */
-    // TODO: 통신 오류와 맵매칭 실패 구분하여 처리
+    // TODO: 통신 오류와 맵매칭 실패 구분하여 처리 + Direction도 반환해주기
     public LocationData requestMapMatchAndRecord(GPSRecorder gpsRecorder, LocationData currentLocation) {
-        log.info("Queue size : {}, Error count : {}", gpsRecorder.currentSize(), gpsRecorder.getFailCount());
         if (gpsRecorder.currentSize() < minRecordSize) {
             addCurrentLocationToRecorder(gpsRecorder, currentLocation);
             return currentLocation;

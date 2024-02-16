@@ -1,6 +1,5 @@
 package com.ajousw.spring.domain.vehicle.record;
 
-import com.ajousw.spring.domain.util.CoordinateUtil;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -21,25 +20,20 @@ public class GPSRecorder {
     }
 
     public void record(LocationData location) {
-        if (lastLocation == null) {
-            lastLocation = location;
-            locationQueue.add(location);
-            return;
-        }
+        if (lastLocation != null) {
+            long timeDifference = ChronoUnit.SECONDS.between(lastLocation.getTimestamp(), location.getTimestamp());
 
-        double distance = CoordinateUtil.calculateDistance(lastLocation.getLatitude(), lastLocation.getLongitude(),
-                location.getLatitude(),
-                location.getLongitude());
+            if (timeDifference >= RecordStatics.MAX_TIME_INTERVAL) {
+                locationQueue.clear();
+            }
 
-        long timeDifference = ChronoUnit.SECONDS.between(lastLocation.getTimestamp(), location.getTimestamp());
-
-        if (distance >= RecordStatics.DISTANCE_INTERVAL || timeDifference >= RecordStatics.TIME_INTERVAL) {
             if (locationQueue.size() == RecordStatics.MAX_SIZE) {
                 locationQueue.poll();
             }
-            lastLocation = location;
-            locationQueue.add(location);
         }
+
+        locationQueue.add(location);
+        lastLocation = location;
     }
 
     public void clear() {
