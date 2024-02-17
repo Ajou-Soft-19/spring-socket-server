@@ -1,10 +1,10 @@
 package com.ajousw.spring.domain.vehicle.record;
 
 import com.ajousw.spring.domain.util.CoordinateUtil;
-import java.time.temporal.ChronoUnit;
+import lombok.Getter;
+
 import java.util.LinkedList;
 import java.util.Queue;
-import lombok.Getter;
 
 /**
  * 10m 이상 위치가 차이나거나, timeInterval이 30초 이상이면 GPS 기록을 저장
@@ -31,9 +31,7 @@ public class GPSRecorder {
                 location.getLatitude(),
                 location.getLongitude());
 
-        long timeDifference = ChronoUnit.SECONDS.between(lastLocation.getTimestamp(), location.getTimestamp());
-
-        if (distance >= RecordStatics.DISTANCE_INTERVAL || timeDifference >= RecordStatics.MAX_TIME_INTERVAL) {
+        if (distance >= RecordStatics.DISTANCE_INTERVAL) {
             if (locationQueue.size() == RecordStatics.MAX_SIZE) {
                 locationQueue.poll();
             }

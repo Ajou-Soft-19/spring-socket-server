@@ -3,11 +3,6 @@ package com.ajousw.spring.domain.navigation.api.provider.impl;
 import com.ajousw.spring.domain.exception.BadApiResponseException;
 import com.ajousw.spring.domain.navigation.api.provider.factory.NavigationApi;
 import jakarta.annotation.PostConstruct;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +11,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Slf4j
 @Getter
@@ -114,12 +115,7 @@ public class OsrmNavigationApi implements NavigationApi {
                 .map(Object::toString)
                 .collect(Collectors.joining(";"));
 
-        // TODO: 맵 매칭 bearing 테스트
-        String bearingsString = bearings.stream()
-                .map(direction -> Math.round(direction) + ",20")
-                .collect(Collectors.joining(";"));
-
-        return String.format(requestUrl, coordinatesString, timestampsString);
+        return String.format(requestUrl, coordinatesString);
     }
 
 }
