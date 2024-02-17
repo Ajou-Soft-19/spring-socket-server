@@ -5,14 +5,15 @@ import com.ajousw.spring.socket.handler.message.MessageType;
 import com.ajousw.spring.socket.handler.message.dto.AlertEndDto;
 import com.ajousw.spring.socket.handler.message.dto.AlertUpdateDto;
 import jakarta.annotation.PreDestroy;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -40,6 +41,17 @@ public class ContinuousAlertTransmitter {
         }
 
         sendAlertEndMessage(sessionNotificationCounterMap, licenseNumber);
+    }
+
+    public void clearTransmitter(Long vehicleId) {
+        Map<String, SessionNotificationCounter> sessionNotificationCounterMap = alertInfoMap.get(vehicleId);
+        String licenseNumber = licenseNumberInfo.get(vehicleId);
+        if (sessionNotificationCounterMap == null || sessionNotificationCounterMap.isEmpty()) {
+            return;
+        }
+
+        sendAlertEndMessage(sessionNotificationCounterMap, licenseNumber);
+        sessionNotificationCounterMap.clear();
     }
 
     @PreDestroy
