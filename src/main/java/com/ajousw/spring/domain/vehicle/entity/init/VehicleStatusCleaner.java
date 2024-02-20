@@ -15,9 +15,9 @@ public class VehicleStatusCleaner {
     private final VehicleStatusRepository vehicleStatusRepository;
 
     @Transactional
-    @Scheduled(fixedDelay = 600000)
+    @Scheduled(fixedDelay = 1200000)
     public void removeUnUpdatedVehicle() {
-        LocalDateTime tenMinutesAgo = LocalDateTime.now().minusMinutes(10);
+        LocalDateTime tenMinutesAgo = LocalDateTime.now().minusMinutes(20);
         long deletedCount = vehicleStatusRepository.deleteByLastUpdateTimeBefore(tenMinutesAgo);
         log.info("[SCHEDULER {}] Deleting {} expired vehicle status", LocalDateTime.now(), deletedCount);
     }
