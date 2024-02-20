@@ -11,6 +11,8 @@ import com.ajousw.spring.domain.vehicle.record.GPSRecorder;
 import com.ajousw.spring.domain.vehicle.record.LocationData;
 import com.ajousw.spring.socket.handler.message.dto.VehicleStatusUpdateDto;
 import com.ajousw.spring.socket.handler.service.ContinuousAlertTransmitter;
+import java.time.LocalDateTime;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
@@ -19,9 +21,6 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.Objects;
 
 // TODO: 영어로 바꾸기...
 @Slf4j
@@ -60,7 +59,7 @@ public class EmergencyVehicleStatusService {
         Point matchedPoint = geometryFactory.createPoint(
                 new Coordinate(matchedLocation.getLongitude(), matchedLocation.getLatitude()));
         vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), matchedPoint, updateDto.getMeterPerSec(),
-                updateDto.getDirection(), updateDto.getLocalDateTime());
+                updateDto.getDirection(), LocalDateTime.now());
 
         if (onEmergencyEvent(updateDto)) {
             continuousAlertTransmitter.broadcastLocation(vehicleId, matchedLocation.getLongitude(),

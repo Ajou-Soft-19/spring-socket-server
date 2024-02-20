@@ -41,7 +41,7 @@ public class VehicleStatusService {
         Point matchedPoint = geometryFactory.createPoint(
                 new Coordinate(matchedLocation.getLongitude(), matchedLocation.getLatitude()));
         vehicleStatus.modifyStatus(updateDto.getIsUsingNavi(), matchedPoint, updateDto.getMeterPerSec(),
-                updateDto.getDirection(), updateDto.getLocalDateTime());
+                updateDto.getDirection(), LocalDateTime.now());
 
         return matchedLocation;
     }

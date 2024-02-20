@@ -2,14 +2,13 @@ package com.ajousw.spring.domain.vehicle.entity.repository;
 
 import com.ajousw.spring.domain.vehicle.entity.Vehicle;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.UUID;
 
 public interface VehicleStatusRepository extends JpaRepository<VehicleStatus, UUID> {
 
@@ -28,6 +27,6 @@ public interface VehicleStatusRepository extends JpaRepository<VehicleStatus, UU
 
     @Modifying(clearAutomatically = true)
     @Query("delete from VehicleStatus vs where vs.lastUpdateTime < :time")
-    void deleteByLastUpdateTimeBefore(@Param("time") LocalDateTime time);
+    int deleteByLastUpdateTimeBefore(@Param("time") LocalDateTime time);
 
 }
