@@ -66,7 +66,9 @@ public class SocketMessageConverter {
     public void sendObjectMessage(WebSocketSession session, Object message, MessageType messageType)
             throws IOException {
         String responseJson = convertToJson(new SocketResponse(messageType, message));
-        session.sendMessage(new TextMessage(responseJson));
+        synchronized (session.getId()) {
+            session.sendMessage(new TextMessage(responseJson));
+        }
     }
 
     public <T> T getSafeValueFromMap(Map<String, Object> data, String key, Class<T> type) {
