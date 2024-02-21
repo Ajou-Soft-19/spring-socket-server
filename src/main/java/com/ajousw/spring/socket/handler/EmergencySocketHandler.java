@@ -5,6 +5,7 @@ import com.ajousw.spring.socket.handler.message.SocketResponse;
 import com.ajousw.spring.socket.handler.message.convert.SocketMessageConverter;
 import com.ajousw.spring.socket.handler.service.EmergencySocketService;
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
@@ -54,16 +55,34 @@ public class EmergencySocketHandler implements WebSocketHandler {
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
-        log.error("Error occurred at sender " + session);
+        log.error("[Session Manager] Error occurred at sender " + session);
         socketService.deleteStatus(session.getAttributes());
         sessions.remove(session);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
-        log.info("Session " + session.getId() + " closed with status: " + closeStatus.getReason());
+        log.info("[Session Manager] Session " + session.getId() + " closed with status: " + closeStatus.getReason());
         socketService.deleteStatus(session.getAttributes());
         sessions.remove(session);
+    }
+
+    public void disconnectTargetSessions(Set<String> targetSessionId) {
+        List<WebSocketSession> targetSessions = sessions.stream()
+                .filter(s -> targetSessionId.contains(s.getId()))
+                .toList();
+
+        log.info("[Session Manager] Disconnecting Expired Emergency Vehicles : {}", targetSessions.size());
+        for (WebSocketSession session : targetSessions) {
+            try {
+                if (session.isOpen()) {
+                    session.close();
+                    log.info("[Session Manager] Closed session: {}", session.getId());
+                }
+            } catch (IOException e) {
+                log.error("[Session Manager] Failed to close session {}", session.getId(), e);
+            }
+        }
     }
 
     @Override

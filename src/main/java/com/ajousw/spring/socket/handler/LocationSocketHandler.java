@@ -76,16 +76,34 @@ public class LocationSocketHandler implements WebSocketHandler {
         }
     }
 
+    public void disconnectTargetSessions(Set<String> targetSessionId) {
+        List<WebSocketSession> targetSessions = sessions.stream()
+                .filter(s -> targetSessionId.contains(s.getId()))
+                .toList();
+
+        log.info("[Session Manager] Disconnecting Expired Vehicles : {}", targetSessions.size());
+        for (WebSocketSession session : targetSessions) {
+            try {
+                if (session.isOpen()) {
+                    session.close();
+                    log.info("[Session Manager] Closed session: {}", session.getId());
+                }
+            } catch (IOException e) {
+                log.error("[Session Manager] Failed to close session {}", session.getId(), e);
+            }
+        }
+    }
+
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
-        log.info("Error occurred at sender " + session);
+        log.info("[Session Manager] Error occurred at sender " + session);
         socketService.deleteStatus(session.getAttributes());
         sessions.remove(session);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
-        log.info("Session " + session.getId() + " closed with status: " + closeStatus.getReason());
+        log.info("[Session Manager] Session " + session.getId() + " closed with status: " + closeStatus.getReason());
         socketService.deleteStatus(session.getAttributes());
         sessions.remove(session);
     }

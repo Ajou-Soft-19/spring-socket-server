@@ -4,6 +4,7 @@ import com.ajousw.spring.domain.vehicle.entity.Vehicle;
 import com.ajousw.spring.domain.vehicle.entity.VehicleStatus;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -25,8 +26,7 @@ public interface VehicleStatusRepository extends JpaRepository<VehicleStatus, UU
 
     Optional<VehicleStatus> findVehicleStatusByVehicleStatusId(String vehicleStatusId);
 
-    @Modifying(clearAutomatically = true)
-    @Query("delete from VehicleStatus vs where vs.lastUpdateTime < :time")
-    int deleteByLastUpdateTimeBefore(@Param("time") LocalDateTime time);
+    @Query("select vs.vehicleStatusId from VehicleStatus vs where vs.lastUpdateTime < :time")
+    Set<String> findByLastUpdateTimeBefore(@Param("time") LocalDateTime time);
 
 }
