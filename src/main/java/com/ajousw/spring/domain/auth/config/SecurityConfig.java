@@ -67,7 +67,8 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        // config.setAllowedOrigins(List.of("*")); // 이 코드는 삭제합니다.
+        config.addAllowedOriginPattern("*"); // 모든 출처를 허용하는 패턴을 추가합니다.
         config.setAllowedMethods(List.of("*"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("*"));
